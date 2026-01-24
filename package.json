@@ -4,6 +4,7 @@
   "description": "",
   "main": "game.js",
   "scripts": {
+    "build": "mkdir -p www && cp index.html style.css game.js upgrade_scene.js phaser.js www/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,6 +20,11 @@
   },
   "homepage": "https://github.com/mikecool321654/Idle_game_quest-#readme",
   "devDependencies": {
+    "@capacitor/cli": "^8.0.1",
+    "@capacitor/ios": "^8.0.1",
     "@playwright/test": "^1.58.0"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.1"
   }
 }
