@@ -27,7 +27,7 @@ test.describe('Responsiveness and Visibility', () => {
 
       const texts = scene.children.list.filter(c => c.type === 'Text');
       const scoreText = texts.find(t => t.text.startsWith('Coins:'));
-      const shopText = texts.find(t => t.text.includes('Double Jump'));
+      const shopText = texts.find(t => t.text.includes('UPGRADES') || t.text.includes('Double Jump'));
 
       const inBounds = (obj) => {
         return obj.x >= 0 && obj.x <= scene.scale.width && obj.y >= 0 && obj.y <= scene.scale.height;
