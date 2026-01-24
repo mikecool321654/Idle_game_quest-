@@ -593,10 +593,7 @@ function update() {
     }
 
     const dist = Math.floor(player.x);
-    if (dist > 1000 && this.lastStoryMilestone < 1000) {
-        showStoryMessage(this, "Command Center: Atmospheric density increasing. Thrusters at 90%.");
-        this.lastStoryMilestone = 1000;
-    } else if (dist > 2000 && this.lastStoryMilestone < 2000) {
+    if (dist > 2000 && this.lastStoryMilestone < 2000) {
         showStoryMessage(this, "Command Center: Signal detected. It's faint... but it's there.");
         this.lastStoryMilestone = 2000;
     } else if (dist > 3000 && this.lastStoryMilestone < 3000) {
