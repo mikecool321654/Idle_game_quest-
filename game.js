@@ -41,18 +41,45 @@ let storyText;
 const game = new Phaser.Game(config);
 
 function preload() {
-    this.load.image('sky', 'https://labs.phaser.io/assets/skies/space2.png');
-    this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
-    this.load.image('star', 'https://labs.phaser.io/assets/sprites/star.png');
-    this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/phaser-dude.png', { frameWidth: 32, frameHeight: 48 });
+    // Assets are generated in create() to avoid external dependency issues
 }
 
 function create() {
     gameWidth = this.scale.width;
     gameHeight = this.scale.height;
 
+    // --- Generate Textures ---
+    const graphics = this.make.graphics();
+
+    // Sky
+    graphics.fillStyle(0x222222, 1);
+    graphics.fillRect(0, 0, 32, 32);
+    graphics.generateTexture('sky', 32, 32);
+    graphics.clear();
+
+    // Ground
+    graphics.fillStyle(0x00ff00, 1); // Green ground
+    graphics.fillRect(0, 0, 32, 32);
+    graphics.generateTexture('ground', 32, 32);
+    graphics.clear();
+
+    // Star (Coin)
+    graphics.fillStyle(0xffff00, 1);
+    graphics.fillCircle(12, 12, 10);
+    graphics.generateTexture('star', 24, 24);
+    graphics.clear();
+
+    // Dude
+    graphics.fillStyle(0x00ffff, 1);
+    graphics.fillRect(0, 0, 32, 48);
+    graphics.generateTexture('dude', 32, 48);
+    graphics.clear();
+
+    graphics.destroy();
+    // -------------------------
+
     // Background
-    this.add.image(gameWidth / 2, gameHeight / 2, 'sky').setScrollFactor(0).setScale(2).setTint(0x888888); // Darker background
+    this.add.image(gameWidth / 2, gameHeight / 2, 'sky').setScrollFactor(0).setScale(gameWidth/32 + 10).setTint(0x888888);
 
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
@@ -72,9 +99,10 @@ function create() {
     player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude');
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
-    player.setTint(0x00ffff); // Cyan Robot
+    // player.setTint(0x00ffff); // Already cyan
 
-    // Animations
+    // Animations (Removed as we are using static textures)
+    /*
     if (!this.anims.exists('left')) {
         this.anims.create({
             key: 'left',
@@ -82,20 +110,10 @@ function create() {
             frameRate: 10,
             repeat: -1
         });
-        this.anims.create({
-            key: 'turn',
-            frames: [ { key: 'dude', frame: 4 } ],
-            frameRate: 20
-        });
-        this.anims.create({
-            key: 'right',
-            frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
-            frameRate: 10,
-            repeat: -1
-        });
+        // ...
     }
-
     player.anims.play('right', true);
+    */
 
     // Physics
     this.physics.add.collider(player, platforms);
@@ -118,10 +136,10 @@ function create() {
 }
 
 function createUI(scene) {
-    scoreText = scene.add.text(16, 16, 'Credits: ' + coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
+    scoreText = scene.add.text(16, 16, 'Coins: ' + coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
     robotText = scene.add.text(16, 50, 'Robot MK-' + robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
 
-    let shopString = hasDoubleJump ? 'Double Jump\nACQUIRED' : 'Buy Double Jump\n(50 Credits) [B]';
+    let shopString = hasDoubleJump ? 'Double Jump\nACQUIRED' : 'Buy Double Jump\n(50 Coins) [B]';
     let shopColor = hasDoubleJump ? '#0f0' : '#aaa';
 
     shopText = scene.add.text(gameWidth - 250, 16, shopString, { fontSize: '24px', fill: shopColor, align: 'right', fontFamily: 'Courier' })
@@ -134,7 +152,7 @@ function createUI(scene) {
     scene.input.keyboard.on('keydown-B', () => buyDoubleJump());
 
     // Story Text
-    let storyMsg = "System Online. Objective: Collect Credits.";
+    let storyMsg = "System Online. Objective: Collect Coins.";
     if (robotVersion > 1) {
         storyMsg = "Signal Lost. Consciousness uploaded to MK-" + robotVersion + ".";
     }
@@ -242,7 +260,7 @@ function spawnNextPlatform(scene) {
 function collectStar(player, star) {
     star.disableBody(true, true);
     coins += 10;
-    scoreText.setText('Credits: ' + coins);
+    scoreText.setText('Coins: ' + coins);
     updateShopUI();
 }
 
@@ -250,7 +268,7 @@ function buyDoubleJump() {
     if (coins >= 50 && !hasDoubleJump) {
         coins -= 50;
         hasDoubleJump = true;
-        scoreText.setText('Credits: ' + coins);
+        scoreText.setText('Coins: ' + coins);
         shopText.setText('Double Jump\nACQUIRED');
         shopText.setColor('#0f0');
     }
