@@ -79,7 +79,7 @@ function create() {
         gameHeight = gameSize.height;
 
         // Update Camera Offset
-        this.cameras.main.setFollowOffset(-250, -(gameHeight * 0.4));
+        this.cameras.main.setFollowOffset(-250, (gameHeight * 0.15));
 
         if (scoreText) scoreText.setPosition(45, 16);
         if (robotText) robotText.setPosition(16, 60);
@@ -360,8 +360,8 @@ function create() {
 
     // Camera
     // Offset -250 puts the player to the left.
-    // Negative Y offset moves camera up, which pushes player down on screen.
-    const camOffsetY = -(gameHeight * 0.4);
+    // Positive Y offset moves camera up/keeps player lower on screen (based on empirically observed behavior).
+    const camOffsetY = (gameHeight * 0.15);
     this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
