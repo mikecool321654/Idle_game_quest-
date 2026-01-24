@@ -42,7 +42,7 @@ class UpgradeScene extends Phaser.Scene {
             { id: 'armor', name: 'Armor', cost: 30, x: 100, y: 50, parent: 'jump', var: 'hasArmor', description: 'Protects against one spike impact (Consumable).' },
             { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump', description: 'Jump a third time in mid-air.' },
             { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack', description: 'Hold Jump while falling to fly.' },
-            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker', description: 'Generates 1 coin every second.' }
+            { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker', description: 'Generates 1 coin every second.' }
         ];
 
         // Description Text

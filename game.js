@@ -341,7 +341,8 @@ function create() {
     // Camera
     // Offset -250 puts the player to the left? Let's try inverting.
     // If +250 put it on the right, -250 should put it on the left.
-    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, -200);
+    const camOffsetY = gameHeight > gameWidth ? -300 : -100;
+    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
     // Input
@@ -393,8 +394,23 @@ function createUI(scene) {
             "Command Center: Planet Xylos was once inhabited. Now, only ruins remain."
         ];
 
-        if (window.gameState.lastDeathReason === 'fall' && !window.gameState.hasDoubleJump) {
-             storyMsg = "Command Center: Gravity is harsh. A double jump would help!";
+        if (window.gameState.lastDeathReason === 'fall') {
+             const fallMessages = [
+                 "Command Center: Gravity check... Status: Working.",
+                 "Command Center: Did you forget your jetpack? Oh wait, you don't have one yet.",
+                 "Command Center: That was a long way down.",
+                 "Command Center: Aim for the platform next time.",
+                 "Command Center: Splat.",
+                 "Command Center: Error: Flight module not found.",
+                 "Command Center: Nice dive! 10/10 for form, 0/10 for survival.",
+                 "Command Center: Issuing gravity assist... Just kidding.",
+                 "Command Center: Maybe try jumping *onto* the ground?"
+             ];
+             if (!window.gameState.hasDoubleJump) {
+                 fallMessages.push("Command Center: Gravity is harsh. A double jump would help!");
+                 fallMessages.push("Command Center: If only you could jump again in mid-air...");
+             }
+             storyMsg = Phaser.Utils.Array.GetRandom(fallMessages);
         } else if (window.gameState.lastDeathReason === 'spike' && !window.gameState.hasArmor) {
              storyMsg = "Command Center: Spikes detected. Armor plating recommended.";
         } else {
@@ -605,7 +621,10 @@ function spawnNextPlatform(scene) {
         unreachPlat.displayHeight = 32;
         unreachPlat.refreshBody();
         unreachPlat.setTint(0x555555); // Greyed out
-        stars.create(startX, unreachY - 50, 'star');
+        // Add a lot of coins on the top platform
+        for(let k=0; k<5; k++) {
+             stars.create(startX - 80 + (k*40), unreachY - 50, 'star');
+        }
     }
 
     // Spawn Stars
