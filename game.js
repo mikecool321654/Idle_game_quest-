@@ -31,14 +31,19 @@ let gameWidth;
 let gameHeight;
 
 // Game State
-let coins = 0;
-let robotVersion = 1;
-let hasDoubleJump = false;
-let hasArmor = false;
-let hasGem = false;
+window.gameState = window.gameState || {
+    coins: 0,
+    robotVersion: 1,
+    hasDoubleJump: false,
+    hasTripleJump: false,
+    hasJetpack: false,
+    hasArmor: false,
+    hasGem: false,
+    lastDeathReason: ''
+};
+
 let bigHoleGenerated = false;
 let jumps = 0;
-let lastDeathReason = '';
 
 // UI
 let scoreText;
@@ -58,6 +63,14 @@ function preload() {
 function create() {
     gameWidth = this.scale.width;
     gameHeight = this.scale.height;
+
+    // Register UpgradeScene if not already (assuming it is loaded)
+    if (!this.scene.get('UpgradeScene')) {
+        // UpgradeScene should be available globally if loaded via script
+        if (typeof UpgradeScene !== 'undefined') {
+            this.scene.add('UpgradeScene', UpgradeScene, false);
+        }
+    }
 
     this.scale.on('resize', (gameSize) => {
         gameWidth = gameSize.width;
@@ -85,8 +98,19 @@ function create() {
     graphics.clear();
 
     // Ground
-    graphics.fillStyle(0x00ff00, 1); // Green ground
+    graphics.fillStyle(0x66cc66, 1); // Grassy Green
     graphics.fillRect(0, 0, 32, 32);
+    // Grass blades
+    graphics.fillStyle(0x44aa44, 1);
+    graphics.beginPath();
+    graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
+    graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
+    graphics.closePath();
+    graphics.fillPath();
+    // Dirt details
+    graphics.fillStyle(0x553311, 1);
+    graphics.fillCircle(16, 20, 2);
+    graphics.fillCircle(24, 28, 3);
     graphics.generateTexture('ground', 32, 32);
     graphics.clear();
 
@@ -122,45 +146,56 @@ function create() {
     // Dude (Robot) Sprite Sheet
     // 32x48
     const drawRobotFrame = (offsetX, frameType) => {
-        // Body (Metallic)
-        graphics.fillStyle(0x8888aa, 1);
-        graphics.fillRect(offsetX + 8, 16, 16, 18); // Torso
+        const cBody = 0xffffff;
+        const cDark = 0x333333;
+        const cEye = 0x00ffff; // Cyan eye
+        const cAntenna = 0xff0000;
+        const cLimbs = 0x555555;
+
+        // Limbs function
+        const drawLimb = (x, y, w, h) => {
+             graphics.fillStyle(cLimbs, 1);
+             graphics.fillRoundedRect(offsetX + x, y, w, h, 2);
+        };
+
+        // Legs (Behind)
+        if (frameType === 1) drawLimb(8, 34, 5, 10); // Back leg up
+        else drawLimb(10, 34, 5, 14); // Back leg down
+
+        // Body
+        graphics.fillStyle(cBody, 1);
+        graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8); // Round body
 
         // Head
-        graphics.fillStyle(0xaaaaaa, 1);
-        graphics.fillRoundedRect(offsetX + 8, 4, 16, 12, 2);
+        graphics.fillStyle(cBody, 1);
+        graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10); // Round head
 
-        // Visor (Eye) - Side view
-        graphics.fillStyle(0x00ff00, 1);
-        graphics.fillRect(offsetX + 18, 8, 6, 4);
+        // Face / Visor
+        graphics.fillStyle(cDark, 1);
+        graphics.fillRoundedRect(offsetX + 6, 6, 20, 12, 4);
+
+        // Eyes
+        graphics.fillStyle(cEye, 1);
+        graphics.fillCircle(offsetX + 12, 12, 3);
+        graphics.fillCircle(offsetX + 20, 12, 3);
 
         // Antenna
-        graphics.lineStyle(1, 0xdddddd);
-        graphics.lineBetween(offsetX + 16, 4, offsetX + 16, 0);
-        graphics.fillStyle(0xff0000, 1);
-        graphics.fillCircle(offsetX + 16, 0, 1);
+        graphics.lineStyle(2, cDark);
+        graphics.lineBetween(offsetX + 16, 0, offsetX + 16, -5);
+        graphics.fillStyle(cAntenna, 1);
+        graphics.fillCircle(offsetX + 16, -5, 3);
 
-        // Arms & Legs
-        graphics.fillStyle(0x666688, 1);
+        // Arms (Side/Front)
+        // Simple arm logic
+        drawLimb(12, 20, 4, 12);
 
-        // Arms
-        graphics.fillRect(offsetX + 10, 18, 4, 12); // Back arm
-        graphics.fillRect(offsetX + 20, 18, 4, 12); // Front arm (side view, maybe only one visible or overlapping)
-
-        // Legs
-        if (frameType === 0) { // Stand
-             graphics.fillRect(offsetX + 10, 34, 5, 14);
-             graphics.fillRect(offsetX + 18, 34, 5, 14);
-        } else if (frameType === 1) { // Run 1
-             graphics.fillRect(offsetX + 8, 34, 5, 10); // Back leg up
-             graphics.fillRect(offsetX + 20, 34, 5, 14); // Front leg down
-        } else if (frameType === 2) { // Run 2
-             graphics.fillRect(offsetX + 10, 34, 5, 14); // Back leg down
-             graphics.fillRect(offsetX + 22, 34, 5, 10); // Front leg up
-        } else if (frameType === 3) { // Jump
-             graphics.fillRect(offsetX + 8, 32, 5, 10); // Left leg bent
-             graphics.fillRect(offsetX + 20, 30, 5, 10); // Right leg bent
+        // Legs (Front)
+        if (frameType === 2) drawLimb(22, 34, 5, 10); // Front leg up
+        else if (frameType === 3) { // Jump
+             drawLimb(8, 32, 5, 10);
+             drawLimb(20, 30, 5, 10);
         }
+        else drawLimb(18, 34, 5, 14); // Front leg down
     };
 
     drawRobotFrame(0, 0);   // Stand
@@ -256,18 +291,18 @@ function create() {
 }
 
 function createUI(scene) {
-    scoreText = scene.add.text(16, 16, 'Coins: ' + coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
-    robotText = scene.add.text(16, 50, 'Robot MK-' + robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
+    scoreText = scene.add.text(16, 16, 'Coins: ' + window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
+    robotText = scene.add.text(16, 50, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
 
     shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
         .setOrigin(1, 0)
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => handleShopAction())
+        .on('pointerdown', () => handleShopAction(scene))
         .on('pointerover', () => shopText.setScale(1.1))
         .on('pointerout', () => shopText.setScale(1.0));
 
-    scene.input.keyboard.on('keydown-B', () => handleShopAction());
+    scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
 
     // Settings Button
     scene.add.text(16, 80, 'SETTINGS', { fontSize: '20px', fill: '#fff', backgroundColor: '#333', fontFamily: 'Courier' })
@@ -280,11 +315,11 @@ function createUI(scene) {
 
     // Story Text
     let storyMsg = "Command Center: System Online. Objective: Explore Planet X. Find the Gem.";
-    if (robotVersion > 1) {
-        if (lastDeathReason === 'fall' && !hasDoubleJump) {
+    if (window.gameState.robotVersion > 1) {
+        if (window.gameState.lastDeathReason === 'fall' && !window.gameState.hasDoubleJump) {
              storyMsg = "Command Center: Gravity is harsh. A double jump would help!";
         } else {
-            storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + robotVersion + ". Coins retained.";
+            storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
         }
     }
 
@@ -338,6 +373,11 @@ function update() {
         handleJump();
     }
 
+    // Jetpack Logic
+    if (window.gameState.hasJetpack && (cursors.space.isDown || cursors.up.isDown) && !player.body.touching.down) {
+        player.setVelocityY(-300);
+    }
+
     // Level Generation
     const scrollX = this.cameras.main.scrollX;
     const rightEdge = scrollX + gameWidth;
@@ -348,7 +388,7 @@ function update() {
 
     // Death Logic
     if (player.y > lastPlatformY + 300) { // Increased threshold slightly and relative to platform level
-        lastDeathReason = 'fall';
+        window.gameState.lastDeathReason = 'fall';
         respawn(this);
     }
 
@@ -391,14 +431,17 @@ function handleJump() {
     if (player.body.touching.down) {
         player.setVelocityY(-500);
         jumps = 1;
-    } else if (hasDoubleJump && jumps < 2) {
+    } else if (window.gameState.hasDoubleJump && jumps < 2) {
         player.setVelocityY(-500);
         jumps = 2;
+    } else if (window.gameState.hasTripleJump && jumps < 3) {
+        player.setVelocityY(-500);
+        jumps = 3;
     }
 }
 
 function respawn(scene) {
-    robotVersion++;
+    window.gameState.robotVersion++;
     scene.scene.restart();
 }
 
@@ -433,7 +476,7 @@ function spawnNextPlatform(scene) {
     }
 
     // Spawn Spikes (After Double Jump)
-    if (hasDoubleJump) {
+    if (window.gameState.hasDoubleJump) {
         const numSpikes = Phaser.Math.Between(0, 1); // Reduced density
         for(let i=0; i<numSpikes; i++) {
              // Random position on platform, avoiding edges slightly
@@ -443,7 +486,7 @@ function spawnNextPlatform(scene) {
     }
 
     // Spawn Gem (Objective)
-    if (!hasGem && nextPlatformX > 5000 && gemGroup.getLength() === 0) {
+    if (!window.gameState.hasGem && nextPlatformX > 5000 && gemGroup.getLength() === 0) {
          gemGroup.create(startX + width / 2, y - 60, 'gem');
     }
 
@@ -453,27 +496,27 @@ function spawnNextPlatform(scene) {
 }
 
 function hitSpike(player, spike) {
-    if (hasArmor) {
-        hasArmor = false;
+    if (window.gameState.hasArmor) {
+        window.gameState.hasArmor = false;
         spike.destroy();
         player.scene.cameras.main.shake(200, 0.01);
         updateShopUI();
         return;
     }
-    lastDeathReason = 'spike';
+    window.gameState.lastDeathReason = 'spike';
     respawn(player.scene);
 }
 
 function collectStar(player, star) {
     star.disableBody(true, true);
-    coins += 1;
-    scoreText.setText('Coins: ' + coins);
+    window.gameState.coins += 1;
+    scoreText.setText('Coins: ' + window.gameState.coins);
     updateShopUI();
 }
 
 function collectGem(player, gem) {
     gem.disableBody(true, true);
-    hasGem = true;
+    window.gameState.hasGem = true;
     storyText.setText("Command Center: Gem acquired! Excellent work.");
     storyText.setAlpha(1);
 
@@ -488,38 +531,17 @@ function collectGem(player, gem) {
     });
 }
 
-function handleShopAction() {
-    if (!hasDoubleJump) {
-        if (coins >= 20) {
-            coins -= 20;
-            hasDoubleJump = true;
-            scoreText.setText('Coins: ' + coins);
-            updateShopUI();
-        }
-    } else if (!hasArmor) {
-        if (coins >= 100) {
-            coins -= 100;
-            hasArmor = true;
-            scoreText.setText('Coins: ' + coins);
-            updateShopUI();
-        }
+function handleShopAction(scene) {
+    // Open Upgrade Scene if available
+    if (scene && scene.scene.get('UpgradeScene')) {
+        scene.scene.launch('UpgradeScene');
+        scene.physics.pause();
     }
 }
 
 function updateShopUI() {
-    let text = '';
-    let color = '#aaa';
-
-    if (!hasDoubleJump) {
-        text = 'Buy Double Jump\n(20 Coins) [B]';
-        color = (coins >= 20) ? '#ff0' : '#aaa';
-    } else if (!hasArmor) {
-        text = 'Buy Armor\n(100 Coins) [B]';
-        color = (coins >= 100) ? '#ff0' : '#aaa';
-    } else {
-        text = 'Armor\nEQUIPPED';
-        color = '#0f0';
-    }
+    let text = 'UPGRADES [B]';
+    let color = '#0f0';
 
     if (shopText) {
         shopText.setText(text);
@@ -559,6 +581,8 @@ function toggleSettings(scene) {
     const resumeBtn = scene.children.getByName('resumeBtn');
 
     if (scene.physics.world.isPaused) {
+        // If UpgradeScene is running, we might need to handle that.
+        // But this settings menu is separate.
         scene.physics.resume();
         settingsContainer.setVisible(false);
         if (resumeBtn) resumeBtn.setVisible(false);
@@ -567,8 +591,8 @@ function toggleSettings(scene) {
 
         // Update text
         let content = "AMELIORATIONS BOUGHT:\n\n";
-        content += "Double Jump: " + (hasDoubleJump ? "YES" : "NO") + "\n";
-        content += "Armor: " + (hasArmor ? "YES" : "NO") + "\n";
+        content += "Double Jump: " + (window.gameState.hasDoubleJump ? "YES" : "NO") + "\n";
+        content += "Armor: " + (window.gameState.hasArmor ? "YES" : "NO") + "\n";
 
         const textObj = settingsContainer.getByName('amelText');
         if (textObj) textObj.setText(content);
