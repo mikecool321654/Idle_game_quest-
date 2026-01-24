@@ -82,11 +82,11 @@ function create() {
         if (robotText) robotText.setPosition(16, 50);
         if (shopText) shopText.setPosition(gameWidth - 16, 16);
         if (storyText) {
-             // Move story text to top area if requested, but bottom is standard for subtitles.
-             // User said "put it at the top" regarding "text position".
-             // Assuming they meant the status text or maybe the story text was cut off.
-             // Let's try putting story text near the top, under the HUD.
-             storyText.setPosition(gameWidth / 2, 150);
+             if (gameHeight > gameWidth) {
+                 storyText.setPosition(gameWidth / 2, 130);
+             } else {
+                 storyText.setPosition(gameWidth / 2, gameHeight - 40);
+             }
              storyText.setStyle({ wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true } });
         }
     });
@@ -110,6 +110,14 @@ function create() {
     graphics.moveTo(0, 100);
     graphics.lineTo(50, 0);
     graphics.lineTo(100, 100);
+    graphics.closePath();
+    graphics.fillPath();
+    // Snow Cap
+    graphics.fillStyle(0xffffff, 1);
+    graphics.beginPath();
+    graphics.moveTo(50, 0);
+    graphics.lineTo(35, 30);
+    graphics.lineTo(65, 30);
     graphics.closePath();
     graphics.fillPath();
     graphics.generateTexture('mountain', 100, 100);
@@ -150,6 +158,9 @@ function create() {
     graphics.strokeCircle(12, 12, 10);
     graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
     graphics.fillCircle(9, 9, 3);
+    // Extra Detail
+    graphics.fillStyle(0xFFFACD, 1);
+    graphics.fillCircle(12, 12, 5);
     graphics.generateTexture('star', 24, 24);
     graphics.clear();
 
@@ -247,7 +258,7 @@ function create() {
     // Mountains (Distant Objects)
     mountains = this.add.group();
     for (let i = 0; i < 5; i++) {
-        let x = Phaser.Math.Between(0, gameWidth);
+        let x = Phaser.Math.Between(2000, 4000);
         let y = gameHeight - Phaser.Math.Between(50, 200);
         let mountain = mountains.create(x, y, 'mountain');
         mountain.setOrigin(0.5, 1);
@@ -299,6 +310,10 @@ function create() {
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
+    // Starting Coins
+    for(let k=0; k<4; k++) {
+        stars.create(400 + k*60, lastPlatformY - 50, 'star');
+    }
     nextPlatformX = 1000;
 
     // Player
@@ -326,7 +341,7 @@ function create() {
     // Camera
     // Offset -250 puts the player to the left? Let's try inverting.
     // If +250 put it on the right, -250 should put it on the left.
-    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, 0);
+    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, -200);
     this.cameras.main.setDeadzone(100, 100);
 
     // Input
@@ -590,6 +605,7 @@ function spawnNextPlatform(scene) {
         unreachPlat.displayHeight = 32;
         unreachPlat.refreshBody();
         unreachPlat.setTint(0x555555); // Greyed out
+        stars.create(startX, unreachY - 50, 'star');
     }
 
     // Spawn Stars
@@ -633,10 +649,6 @@ function spawnNextPlatform(scene) {
 
 function hitSpike(player, spike) {
     if (window.gameState.hasArmor) {
-        window.gameState.hasArmor = false;
-        spike.destroy();
-        player.scene.cameras.main.shake(200, 0.01);
-        updateShopUI();
         return;
     }
     window.gameState.lastDeathReason = 'spike';
