@@ -314,12 +314,26 @@ function createUI(scene) {
     createSettingsUI(scene);
 
     // Story Text
-    let storyMsg = "Command Center: System Online. Objective: Explore Planet X. Find the Gem.";
+    let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
     if (window.gameState.robotVersion > 1) {
+        const loreMessages = [
+            "Command Center: We are the Overwatch. We guide you to the Gem.",
+            "Command Center: The Gem is the key to our survival.",
+            "Command Center: Atmospheric sensors indicate high toxicity. Proceed with caution.",
+            "Command Center: Reconstructing unit... Optimizing for local gravity.",
+            "Command Center: Previous data packet received. Analyzing failure."
+        ];
+
         if (window.gameState.lastDeathReason === 'fall' && !window.gameState.hasDoubleJump) {
              storyMsg = "Command Center: Gravity is harsh. A double jump would help!";
+        } else if (window.gameState.lastDeathReason === 'spike' && !window.gameState.hasArmor) {
+             storyMsg = "Command Center: Spikes detected. Armor plating recommended.";
         } else {
-            storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
+             if (Phaser.Math.Between(0, 100) > 60) {
+                 storyMsg = Phaser.Utils.Array.GetRandom(loreMessages);
+             } else {
+                 storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
+             }
         }
     }
 
