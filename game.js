@@ -126,8 +126,12 @@ function create() {
     graphics.clear();
 
     // Star (Coin)
-    graphics.fillStyle(0xffff00, 1);
+    graphics.fillStyle(0xFFD700, 1); // Gold
     graphics.fillCircle(12, 12, 10);
+    graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
+    graphics.strokeCircle(12, 12, 10);
+    graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
+    graphics.fillCircle(9, 9, 3);
     graphics.generateTexture('star', 24, 24);
     graphics.clear();
 
@@ -224,9 +228,9 @@ function create() {
 
     // Clouds
     clouds = this.add.group();
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 50; i++) {
         let x = Phaser.Math.Between(0, gameWidth);
-        let y = Phaser.Math.Between(0, gameHeight * 0.6);
+        let y = Phaser.Math.Between(0, gameHeight * 0.9);
         let cloud = clouds.create(x, y, 'cloud');
         let scale = Phaser.Math.FloatBetween(0.5, 1.5);
         cloud.setScale(scale);
@@ -245,6 +249,7 @@ function create() {
     nextPlatformX = 0;
     bigHoleGenerated = false;
     jumps = 0;
+    this.lastStoryMilestone = 0;
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
@@ -321,7 +326,10 @@ function createUI(scene) {
             "Command Center: The Gem is the key to our survival.",
             "Command Center: Atmospheric sensors indicate high toxicity. Proceed with caution.",
             "Command Center: Reconstructing unit... Optimizing for local gravity.",
-            "Command Center: Previous data packet received. Analyzing failure."
+            "Command Center: Previous data packet received. Analyzing failure.",
+            "Command Center: Remember, coins can be exchanged for upgrades.",
+            "Command Center: Do not fear the void. You are replaceable.",
+            "Command Center: Planet Xylos was once inhabited. Now, only ruins remain."
         ];
 
         if (window.gameState.lastDeathReason === 'fall' && !window.gameState.hasDoubleJump) {
@@ -378,7 +386,7 @@ function update() {
     clouds.children.iterate((cloud) => {
         if (cloud.x < camX - 400) {
             cloud.x = camX + gameWidth + Phaser.Math.Between(100, 800);
-            cloud.y = Phaser.Math.Between(0, gameHeight * 0.6);
+            cloud.y = Phaser.Math.Between(0, gameHeight * 0.9);
         }
     });
 
@@ -404,6 +412,22 @@ function update() {
     if (player.y > lastPlatformY + 300) { // Increased threshold slightly and relative to platform level
         window.gameState.lastDeathReason = 'fall';
         respawn(this);
+    }
+
+    // Story Milestones
+    const dist = Math.floor(player.x);
+    if (dist > 1000 && this.lastStoryMilestone < 1000) {
+        showStoryMessage(this, "Command Center: Atmospheric density increasing. Thrusters at 90%.");
+        this.lastStoryMilestone = 1000;
+    } else if (dist > 2000 && this.lastStoryMilestone < 2000) {
+        showStoryMessage(this, "Command Center: Signal detected. It's faint... but it's there.");
+        this.lastStoryMilestone = 2000;
+    } else if (dist > 3000 && this.lastStoryMilestone < 3000) {
+        showStoryMessage(this, "Command Center: Leaving safe zone. Terrain instability detected.");
+        this.lastStoryMilestone = 3000;
+    } else if (dist > 4500 && this.lastStoryMilestone < 4500) {
+        showStoryMessage(this, "Command Center: Energy signatures consistent with Gem proximity.");
+        this.lastStoryMilestone = 4500;
     }
 
     cleanup(this);
@@ -471,6 +495,13 @@ function spawnNextPlatform(scene) {
     let gap = Phaser.Math.Between(100, 200);
     let width = Phaser.Math.Between(200, 600);
     let y = lastPlatformY;
+    const TUTORIAL_LIMIT = 3000;
+
+    // Tutorial Phase: Continuous ground
+    if (nextPlatformX < TUTORIAL_LIMIT) {
+        gap = 0;
+        width = Phaser.Math.Between(400, 800);
+    }
 
     // Big Hole Logic
     if (!bigHoleGenerated && nextPlatformX > 3000) {
@@ -486,16 +517,23 @@ function spawnNextPlatform(scene) {
     const numStars = Phaser.Math.Between(0, 3);
     const step = width / (numStars + 1);
     for(let i=1; i<=numStars; i++) {
-        stars.create(startX + (i*step), y - 40, 'star');
+        let starY = y - 40;
+        // In tutorial, vary height to encourage jumping
+        if (nextPlatformX < TUTORIAL_LIMIT && Phaser.Math.Between(0, 1) === 1) {
+            starY = y - 120;
+        }
+        stars.create(startX + (i*step), starY, 'star');
     }
 
-    // Spawn Spikes (After Double Jump)
-    if (window.gameState.hasDoubleJump) {
-        const numSpikes = Phaser.Math.Between(0, 1); // Reduced density
-        for(let i=0; i<numSpikes; i++) {
-             // Random position on platform, avoiding edges slightly
-             let sx = startX + Phaser.Math.Between(50, width - 50);
-             spikes.create(sx, y - 32, 'spike');
+    // Spawn Spikes (After Double Jump, reduced density, not in tutorial)
+    if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
+        if (Phaser.Math.Between(0, 100) < 25) { // 25% chance per platform
+            const numSpikes = 1;
+            for(let i=0; i<numSpikes; i++) {
+                 // Random position on platform, avoiding edges slightly
+                 let sx = startX + Phaser.Math.Between(50, width - 50);
+                 spikes.create(sx, y - 32, 'spike');
+            }
         }
     }
 
@@ -531,13 +569,18 @@ function collectStar(player, star) {
 function collectGem(player, gem) {
     gem.disableBody(true, true);
     window.gameState.hasGem = true;
-    storyText.setText("Command Center: Gem acquired! Excellent work.");
+    showStoryMessage(player.scene, "Command Center: Gem acquired! Excellent work.");
+}
+
+function showStoryMessage(scene, msg) {
+    if (!storyText) return;
+    storyText.setText(msg);
     storyText.setAlpha(1);
 
     // Reset fade out
-    player.scene.tweens.killTweensOf(storyText);
-    player.scene.time.delayedCall(4000, () => {
-        player.scene.tweens.add({
+    scene.tweens.killTweensOf(storyText);
+    scene.time.delayedCall(4000, () => {
+        scene.tweens.add({
             targets: storyText,
             alpha: 0,
             duration: 1000
