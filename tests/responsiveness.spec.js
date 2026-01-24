@@ -26,7 +26,8 @@ test.describe('Responsiveness and Visibility', () => {
       // We need to find them in scene.children or trust they are within bounds.
 
       const texts = scene.children.list.filter(c => c.type === 'Text');
-      const scoreText = texts.find(t => t.text.startsWith('Coins:'));
+      // Score text is now just a number (or starts with a number if mixed). It is located at top left.
+      const scoreText = texts.find(t => !isNaN(parseInt(t.text)) && t.x < 100 && t.y < 50);
       const shopText = texts.find(t => t.text.includes('UPGRADES') || t.text.includes('Double Jump'));
 
       const inBounds = (obj) => {

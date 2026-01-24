@@ -78,8 +78,11 @@ function create() {
         gameWidth = gameSize.width;
         gameHeight = gameSize.height;
 
-        if (scoreText) scoreText.setPosition(16, 16);
-        if (robotText) robotText.setPosition(16, 50);
+        // Update Camera Offset
+        this.cameras.main.setFollowOffset(-250, -(gameHeight * 0.4));
+
+        if (scoreText) scoreText.setPosition(45, 16);
+        if (robotText) robotText.setPosition(16, 60);
         if (shopText) shopText.setPosition(gameWidth - 16, 16);
         if (storyText) {
              if (gameHeight > gameWidth) {
@@ -174,6 +177,23 @@ function create() {
     graphics.closePath();
     graphics.fillPath();
     graphics.generateTexture('gem', 24, 24);
+    graphics.clear();
+
+    // Gear (Settings Icon)
+    graphics.fillStyle(0x888888, 1);
+    graphics.fillCircle(16, 16, 10);
+    graphics.lineStyle(4, 0x888888);
+    for (let i = 0; i < 8; i++) {
+        const angle = i * (Math.PI / 4);
+        const x = 16 + Math.cos(angle) * 14;
+        const y = 16 + Math.sin(angle) * 14;
+        graphics.moveTo(16, 16);
+        graphics.lineTo(x, y);
+    }
+    graphics.strokePath();
+    graphics.fillStyle(0x000000, 1); // Hole
+    graphics.fillCircle(16, 16, 4);
+    graphics.generateTexture('gear', 32, 32);
     graphics.clear();
 
     // Dude (Robot) Sprite Sheet
@@ -301,7 +321,7 @@ function create() {
             delay: 1000,
             callback: () => {
                 window.gameState.coins++;
-                if (scoreText) scoreText.setText('Coins: ' + window.gameState.coins);
+                if (scoreText) scoreText.setText(window.gameState.coins);
                 updateShopUI();
             },
             loop: true
@@ -339,9 +359,9 @@ function create() {
     this.physics.add.overlap(player, gemGroup, collectGem, null, this);
 
     // Camera
-    // Offset -250 puts the player to the left? Let's try inverting.
-    // If +250 put it on the right, -250 should put it on the left.
-    const camOffsetY = gameHeight > gameWidth ? -300 : -100;
+    // Offset -250 puts the player to the left.
+    // Negative Y offset moves camera up, which pushes player down on screen.
+    const camOffsetY = -(gameHeight * 0.4);
     this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
@@ -358,8 +378,11 @@ function create() {
 }
 
 function createUI(scene) {
-    scoreText = scene.add.text(16, 16, 'Coins: ' + window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
-    robotText = scene.add.text(16, 50, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
+    // Coin Icon and Score
+    scene.add.image(24, 32, 'star').setScrollFactor(0);
+    scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
+
+    robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
 
     shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
         .setOrigin(1, 0)
@@ -371,9 +394,8 @@ function createUI(scene) {
 
     scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
 
-    // Settings Button
-    scene.add.text(16, 80, 'SETTINGS', { fontSize: '20px', fill: '#fff', backgroundColor: '#333', fontFamily: 'Courier' })
-        .setPadding(5)
+    // Settings Button (Gear Icon)
+    scene.add.image(30, 100, 'gear')
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => toggleSettings(scene));
@@ -677,7 +699,7 @@ function hitSpike(player, spike) {
 function collectStar(player, star) {
     star.disableBody(true, true);
     window.gameState.coins += 1;
-    scoreText.setText('Coins: ' + window.gameState.coins);
+    scoreText.setText(window.gameState.coins);
     updateShopUI();
 }
 
