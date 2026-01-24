@@ -38,11 +38,11 @@ class UpgradeScene extends Phaser.Scene {
         // Nodes Definition
         this.nodes = [
             { id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null },
-            { id: 'double', name: 'Double Jump', cost: 20, x: -100, y: 50, parent: 'jump', var: 'hasDoubleJump' },
-            { id: 'armor', name: 'Armor', cost: 30, x: 100, y: 50, parent: 'jump', var: 'hasArmor' },
-            { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump' },
-            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack' },
-            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker' }
+            { id: 'double', name: 'Double Jump', cost: 20, x: -150, y: 50, parent: 'jump', var: 'hasDoubleJump' },
+            { id: 'armor', name: 'Armor', cost: 30, x: 150, y: 50, parent: 'jump', var: 'hasArmor' },
+            { id: 'triple', name: 'Triple Jump', cost: 50, x: -150, y: -100, parent: 'double', var: 'hasTripleJump' },
+            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -150, y: -250, parent: 'triple', var: 'hasJetpack' },
+            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 300, y: -200, parent: null, var: 'hasCoinMaker' }
         ];
 
         this.drawLines();
@@ -102,7 +102,7 @@ class UpgradeScene extends Phaser.Scene {
 
             // Visibility Check
             let isVisible = false;
-            if (node.id === 'jump') isVisible = true;
+            if (!node.parent || node.id === 'jump') isVisible = true;
             else {
                 const parent = this.nodes.find(n => n.id === node.parent);
                 let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
@@ -119,8 +119,11 @@ class UpgradeScene extends Phaser.Scene {
                 state = 'owned';
             } else {
                 // Check parent (already checked for visibility, but double check logic)
-                const parent = this.nodes.find(n => n.id === node.parent);
-                let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                let parentOwned = true;
+                if (node.parent) {
+                    const parent = this.nodes.find(n => n.id === node.parent);
+                    parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                }
 
                 if (parentOwned) {
                     if (window.gameState.coins >= node.cost) {
