@@ -25,6 +25,7 @@ let clouds;
 let mountains;
 let stars;
 let spikes;
+let monsters;
 let cursors;
 let nextPlatformX = 0;
 let lastPlatformY = 0;
@@ -54,6 +55,9 @@ let shopText;
 let storyText;
 let gemGroup;
 let settingsContainer;
+let minimapContainer;
+let minimapPlayer;
+let minimapGem;
 
 const game = new Phaser.Game(config);
 window.game = game;
@@ -152,6 +156,27 @@ function create() {
     graphics.closePath();
     graphics.fillPath();
     graphics.generateTexture('spike', 32, 32);
+    graphics.clear();
+
+    // Monster
+    graphics.fillStyle(0xcc0000, 1); // Dark Red
+    graphics.fillRect(0, 0, 32, 32);
+    // Eyes
+    graphics.fillStyle(0xffff00, 1); // Yellow eyes
+    graphics.fillCircle(8, 10, 4);
+    graphics.fillCircle(24, 10, 4);
+    graphics.fillStyle(0x000000, 1); // Pupils
+    graphics.fillCircle(8, 10, 1);
+    graphics.fillCircle(24, 10, 1);
+    // Teeth
+    graphics.fillStyle(0xffffff, 1);
+    graphics.beginPath();
+    graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
+    graphics.moveTo(12, 24); graphics.lineTo(16, 30); graphics.lineTo(20, 24);
+    graphics.moveTo(20, 24); graphics.lineTo(24, 30); graphics.lineTo(28, 24);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.generateTexture('monster', 32, 32);
     graphics.clear();
 
     // Star (Coin)
@@ -291,7 +316,7 @@ function create() {
 
     // Clouds
     clouds = this.add.group();
-    for (let i = 0; i < 100; i++) { // Increased clouds
+    for (let i = 0; i < 300; i++) { // Increased clouds
         let x = Phaser.Math.Between(0, gameWidth);
         let y = Phaser.Math.Between(0, gameHeight * 0.9);
         let cloud = clouds.create(x, y, 'cloud');
@@ -305,6 +330,7 @@ function create() {
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
     spikes = this.physics.add.staticGroup();
+    monsters = this.physics.add.group(); // Dynamic group for moving monsters
     gemGroup = this.physics.add.staticGroup();
 
     // Initial Setup
@@ -355,6 +381,8 @@ function create() {
     // Physics
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, spikes, hitSpike, null, this);
+    this.physics.add.collider(monsters, platforms); // Monsters walk on platforms
+    this.physics.add.overlap(player, monsters, hitSpike, null, this); // Same death logic as spikes
     this.physics.add.overlap(player, stars, collectStar, null, this);
     this.physics.add.overlap(player, gemGroup, collectGem, null, this);
 
@@ -401,6 +429,7 @@ function createUI(scene) {
         .on('pointerdown', () => toggleSettings(scene));
 
     createSettingsUI(scene);
+    createMinimap(scene);
 
     // Story Text
     let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
@@ -456,7 +485,7 @@ function createUI(scene) {
     .setScrollFactor(0);
 
     // Fade out story text after a few seconds
-    scene.time.delayedCall(4000, () => {
+    scene.time.delayedCall(8000, () => {
         scene.tweens.add({
             targets: storyText,
             alpha: 0,
@@ -486,6 +515,20 @@ function update() {
         if (cloud.x < camX - 400) {
             cloud.x = camX + gameWidth + Phaser.Math.Between(100, 800);
             cloud.y = Phaser.Math.Between(0, gameHeight * 0.9);
+        }
+    });
+
+    // Monster Patrol
+    monsters.children.iterate((monster) => {
+        if (monster.body.touching.down) {
+            // Simple patrol: change direction occasionally
+            if (Math.random() < 0.02) {
+                monster.setVelocityX(Phaser.Math.Between(-50, 50));
+            }
+            // If stopped, start moving
+            if (monster.body.velocity.x === 0) {
+                 monster.setVelocityX(Phaser.Math.Between(-30, 30));
+            }
         }
     });
 
@@ -541,6 +584,28 @@ function update() {
         this.lastStoryMilestone = 4500;
     }
 
+    // Minimap Update
+    if (minimapContainer && minimapPlayer) {
+        const GOAL_X = 15000;
+        const MAP_WIDTH = 200;
+        const MAP_HEIGHT = 100;
+        const scaleX = MAP_WIDTH / GOAL_X;
+        const scaleY = MAP_HEIGHT / gameHeight;
+
+        // Player Position on Minimap
+        // Map X: 0 to MAP_WIDTH
+        let px = Phaser.Math.Clamp(player.x * scaleX, 0, MAP_WIDTH);
+        // Map Y: Invert Y? No, simple scaling. 0 is top.
+        let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
+
+        minimapPlayer.setPosition(px, py);
+
+        // Gem Position on Minimap (Fixed at Goal)
+        // If Gem is not spawned yet, we show it at the end
+        // If Gem is spawned, we could track its real position, but fixed goal is fine for "Objective"
+        minimapGem.setPosition(MAP_WIDTH - 5, 10); // Top Right of Minimap
+    }
+
     cleanup(this);
 }
 
@@ -574,6 +639,18 @@ function cleanup(scene) {
             child.destroy();
         }
     }
+
+    // Cleanup Monsters
+    const mChildren = monsters.getChildren();
+    for (let i = mChildren.length - 1; i >= 0; i--) {
+        const child = mChildren[i];
+        if (child.x < cleanupThreshold) {
+            child.destroy();
+        }
+        else if (child.y > gameHeight + 100) { // Monster fell off
+            child.destroy();
+        }
+    }
 }
 
 function handleJump() {
@@ -594,12 +671,14 @@ function respawn(scene) {
     scene.scene.restart();
 }
 
-function createPlatform(scene, x, y, width) {
+function createPlatform(scene, x, y, width, tint = 0xff00ff) {
     const platform = platforms.create(x + width / 2, y, 'ground');
     platform.displayWidth = width;
     platform.displayHeight = 32;
     platform.refreshBody();
-    platform.setTint(0xff00ff); // Neon Purple
+    if (tint !== null) {
+        platform.setTint(tint);
+    }
 }
 
 function spawnNextPlatform(scene) {
@@ -634,6 +713,17 @@ function spawnNextPlatform(scene) {
 
     let startX = nextPlatformX + gap;
     createPlatform(scene, startX, y, width);
+
+    // Green Platform (Second Level) - Accessible via Triple Jump
+    if (nextPlatformX > 2000 && Phaser.Math.Between(0, 100) < 30) {
+        let highY = y - 350; // Needs triple jump or good double jump
+        createPlatform(scene, startX, highY, Phaser.Math.Between(200, 400), null); // null tint = default green
+
+        // Add coins on top
+        for(let k=0; k<3; k++) {
+             stars.create(startX + (k*50), highY - 50, 'star');
+        }
+    }
 
     // Unreachable Platform (Decorative/Taunt)
     if (Phaser.Math.Between(0, 100) < 10) { // 10% chance
@@ -678,8 +768,17 @@ function spawnNextPlatform(scene) {
         }
     }
 
+    // Spawn Monster
+    if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < 30) { // 30% chance after 4000px
+         let mx = startX + Phaser.Math.Between(50, width - 50);
+         let monster = monsters.create(mx, y - 50, 'monster');
+         monster.setBounce(1);
+         monster.setCollideWorldBounds(false);
+         monster.setVelocityX(Phaser.Math.Between(-40, 40));
+    }
+
     // Spawn Gem (Objective)
-    if (!window.gameState.hasGem && nextPlatformX > 5000 && gemGroup.getLength() === 0) {
+    if (!window.gameState.hasGem && nextPlatformX > 15000 && gemGroup.getLength() === 0) {
          gemGroup.create(startX + width / 2, y - 60, 'gem');
     }
 
@@ -716,7 +815,7 @@ function showStoryMessage(scene, msg) {
 
     // Reset fade out
     scene.tweens.killTweensOf(storyText);
-    scene.time.delayedCall(4000, () => {
+    scene.time.delayedCall(8000, () => {
         scene.tweens.add({
             targets: storyText,
             alpha: 0,
@@ -769,6 +868,42 @@ function createSettingsUI(scene) {
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => toggleSettings(scene));
     resumeBtn.setName('resumeBtn');
+}
+
+function createMinimap(scene) {
+    // Container in Bottom Right
+    const w = 200;
+    const h = 100;
+    const padding = 10;
+    // Position: gameWidth - w - padding, gameHeight - h - padding
+    // BUT we need to handle resize if possible, or just set it initially.
+    // Fixed Scroll Factor means we position it relative to Camera viewport (which matches gameWidth/Height logic if resize updates it)
+    // For now, let's put it at fixed offset.
+
+    // We can rely on gameWidth/gameHeight from create(), but if resized, it might drift?
+    // Let's assume resize updates `gameWidth`, `gameHeight`.
+    // To make it stick to bottom right, we might need to update its position in resize event.
+    // For now, let's put it and see.
+
+    minimapContainer = scene.add.container(gameWidth - w - 20, gameHeight - h - 20).setScrollFactor(0).setDepth(90);
+
+    // Background
+    const bg = scene.add.rectangle(w/2, h/2, w, h, 0x000000, 0.5);
+    bg.setStrokeStyle(2, 0xffffff);
+    minimapContainer.add(bg);
+
+    // Player Dot
+    minimapPlayer = scene.add.circle(0, 0, 4, 0x00ff00); // Green
+    minimapContainer.add(minimapPlayer);
+
+    // Gem Dot
+    minimapGem = scene.add.circle(w - 5, 10, 4, 0x00ffff); // Cyan
+    minimapContainer.add(minimapGem);
+
+    // Handle resize to keep it in corner
+    scene.scale.on('resize', (gameSize) => {
+        minimapContainer.setPosition(gameSize.width - w - 20, gameSize.height - h - 20);
+    });
 }
 
 function toggleSettings(scene) {
