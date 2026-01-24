@@ -35,6 +35,7 @@ let coins = 0;
 let robotVersion = 1;
 let hasDoubleJump = false;
 let hasArmor = false;
+let hasGem = false;
 let bigHoleGenerated = false;
 let jumps = 0;
 let lastDeathReason = '';
@@ -44,6 +45,8 @@ let scoreText;
 let robotText;
 let shopText;
 let storyText;
+let gemGroup;
+let settingsContainer;
 
 const game = new Phaser.Game(config);
 window.game = game;
@@ -102,6 +105,18 @@ function create() {
     graphics.fillStyle(0xffff00, 1);
     graphics.fillCircle(12, 12, 10);
     graphics.generateTexture('star', 24, 24);
+    graphics.clear();
+
+    // Gem (Objective)
+    graphics.fillStyle(0x00ffff, 1); // Cyan
+    graphics.beginPath();
+    graphics.moveTo(12, 0);
+    graphics.lineTo(24, 12);
+    graphics.lineTo(12, 24);
+    graphics.lineTo(0, 12);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.generateTexture('gem', 24, 24);
     graphics.clear();
 
     // Dude (Robot) Sprite Sheet
@@ -174,7 +189,7 @@ function create() {
 
     // Clouds
     clouds = this.add.group();
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 30; i++) {
         let x = Phaser.Math.Between(0, gameWidth);
         let y = Phaser.Math.Between(0, gameHeight * 0.6);
         let cloud = clouds.create(x, y, 'cloud');
@@ -188,6 +203,7 @@ function create() {
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
     spikes = this.physics.add.staticGroup();
+    gemGroup = this.physics.add.staticGroup();
 
     // Initial Setup
     lastPlatformY = gameHeight - 50;
@@ -219,6 +235,7 @@ function create() {
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, spikes, hitSpike, null, this);
     this.physics.add.overlap(player, stars, collectStar, null, this);
+    this.physics.add.overlap(player, gemGroup, collectGem, null, this);
 
     // Camera
     // Offset -250 puts the player to the left? Let's try inverting.
@@ -252,20 +269,22 @@ function createUI(scene) {
 
     scene.input.keyboard.on('keydown-B', () => handleShopAction());
 
+    // Settings Button
+    scene.add.text(16, 80, 'SETTINGS', { fontSize: '20px', fill: '#fff', backgroundColor: '#333', fontFamily: 'Courier' })
+        .setPadding(5)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => toggleSettings(scene));
+
+    createSettingsUI(scene);
+
     // Story Text
-    let storyMsg = "System Online. Objective: Collect Coins.";
+    let storyMsg = "Command Center: System Online. Objective: Explore Planet X. Find the Gem.";
     if (robotVersion > 1) {
         if (lastDeathReason === 'fall' && !hasDoubleJump) {
-             storyMsg = "Gravity is harsh. A double jump would help!";
+             storyMsg = "Command Center: Gravity is harsh. A double jump would help!";
         } else {
-            const messages = [
-                "Signal Lost. Consciousness uploaded to MK-" + robotVersion + ".",
-                "Previous unit scrapped. Optimizing algorithms...",
-                "Did you try not falling?",
-                "Error 404: Floor not found.",
-                "Rebooting... Please don't die this time."
-            ];
-            storyMsg = messages[Math.floor(Math.random() * messages.length)];
+            storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + robotVersion + ". Coins retained.";
         }
     }
 
@@ -415,12 +434,17 @@ function spawnNextPlatform(scene) {
 
     // Spawn Spikes (After Double Jump)
     if (hasDoubleJump) {
-        const numSpikes = Phaser.Math.Between(1, 3); // Hard!
+        const numSpikes = Phaser.Math.Between(0, 1); // Reduced density
         for(let i=0; i<numSpikes; i++) {
              // Random position on platform, avoiding edges slightly
              let sx = startX + Phaser.Math.Between(50, width - 50);
              spikes.create(sx, y - 32, 'spike');
         }
+    }
+
+    // Spawn Gem (Objective)
+    if (!hasGem && nextPlatformX > 5000 && gemGroup.getLength() === 0) {
+         gemGroup.create(startX + width / 2, y - 60, 'gem');
     }
 
     // Update state
@@ -445,6 +469,23 @@ function collectStar(player, star) {
     coins += 1;
     scoreText.setText('Coins: ' + coins);
     updateShopUI();
+}
+
+function collectGem(player, gem) {
+    gem.disableBody(true, true);
+    hasGem = true;
+    storyText.setText("Command Center: Gem acquired! Excellent work.");
+    storyText.setAlpha(1);
+
+    // Reset fade out
+    player.scene.tweens.killTweensOf(storyText);
+    player.scene.time.delayedCall(4000, () => {
+        player.scene.tweens.add({
+            targets: storyText,
+            alpha: 0,
+            duration: 1000
+        });
+    });
 }
 
 function handleShopAction() {
@@ -483,5 +524,56 @@ function updateShopUI() {
     if (shopText) {
         shopText.setText(text);
         shopText.setColor(color);
+    }
+}
+
+function createSettingsUI(scene) {
+    settingsContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(100).setVisible(false);
+
+    // Background
+    const bg = scene.add.rectangle(gameWidth/2, gameHeight/2, gameWidth, gameHeight, 0x000000, 0.8);
+    settingsContainer.add(bg);
+
+    // Title
+    const title = scene.add.text(gameWidth/2, 100, 'SETTINGS', { fontSize: '40px', fill: '#fff', fontFamily: 'Courier' }).setOrigin(0.5);
+    settingsContainer.add(title);
+
+    // Ameliorations Text
+    const amelText = scene.add.text(gameWidth/2, 200, '', { fontSize: '24px', fill: '#fff', align: 'center', fontFamily: 'Courier' }).setOrigin(0.5);
+    amelText.setName('amelText');
+    settingsContainer.add(amelText);
+
+    // Resume Button
+    const resumeBtn = scene.add.text(gameWidth/2, 400, 'RESUME', { fontSize: '32px', fill: '#0f0', backgroundColor: '#333', fontFamily: 'Courier' })
+        .setPadding(10)
+        .setOrigin(0.5)
+        .setScrollFactor(0)
+        .setDepth(101)
+        .setVisible(false)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => toggleSettings(scene));
+    resumeBtn.setName('resumeBtn');
+}
+
+function toggleSettings(scene) {
+    const resumeBtn = scene.children.getByName('resumeBtn');
+
+    if (scene.physics.world.isPaused) {
+        scene.physics.resume();
+        settingsContainer.setVisible(false);
+        if (resumeBtn) resumeBtn.setVisible(false);
+    } else {
+        scene.physics.pause();
+
+        // Update text
+        let content = "AMELIORATIONS BOUGHT:\n\n";
+        content += "Double Jump: " + (hasDoubleJump ? "YES" : "NO") + "\n";
+        content += "Armor: " + (hasArmor ? "YES" : "NO") + "\n";
+
+        const textObj = settingsContainer.getByName('amelText');
+        if (textObj) textObj.setText(content);
+
+        settingsContainer.setVisible(true);
+        if (resumeBtn) resumeBtn.setVisible(true);
     }
 }
