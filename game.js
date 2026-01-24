@@ -1,7 +1,10 @@
 const config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        width: '100%',
+        height: '100%'
+    },
     physics: {
         default: 'arcade',
         arcade: {
@@ -31,6 +34,7 @@ let robotVersion = 1;
 let hasDoubleJump = false;
 let bigHoleGenerated = false;
 let jumps = 0;
+let lastDeathReason = '';
 
 // UI
 let scoreText;
@@ -47,6 +51,13 @@ function preload() {
 function create() {
     gameWidth = this.scale.width;
     gameHeight = this.scale.height;
+
+    this.scale.on('resize', (gameSize) => {
+        gameWidth = gameSize.width;
+        gameHeight = gameSize.height;
+        if (shopText) shopText.setPosition(gameWidth - 250, 16);
+        if (storyText) storyText.setPosition(gameWidth / 2, gameHeight - 100);
+    });
 
     // --- Generate Textures ---
     const graphics = this.make.graphics();
@@ -69,13 +80,51 @@ function create() {
     graphics.generateTexture('star', 24, 24);
     graphics.clear();
 
-    // Dude
-    graphics.fillStyle(0x00ffff, 1);
-    graphics.fillRect(0, 0, 32, 48);
-    graphics.generateTexture('dude', 32, 48);
+    // Dude (Robot) Sprite Sheet
+    // We draw 4 frames of 32x48 side by side
+    const drawRobotFrame = (offsetX, frameType) => {
+        graphics.fillStyle(0x00ffff, 1); // Cyan Body
+
+        // Head
+        graphics.fillRect(offsetX + 10, 2, 12, 10);
+
+        // Body
+        graphics.fillRect(offsetX + 6, 14, 20, 18);
+
+        // Arms
+        graphics.fillRect(offsetX + 2, 14, 4, 14);
+        graphics.fillRect(offsetX + 26, 14, 4, 14);
+
+        // Legs
+        if (frameType === 0) { // Stand
+             graphics.fillRect(offsetX + 8, 32, 6, 16);
+             graphics.fillRect(offsetX + 18, 32, 6, 16);
+        } else if (frameType === 1) { // Left up
+             graphics.fillRect(offsetX + 8, 32, 6, 10);
+             graphics.fillRect(offsetX + 18, 32, 6, 16);
+        } else if (frameType === 2) { // Right up
+             graphics.fillRect(offsetX + 8, 32, 6, 16);
+             graphics.fillRect(offsetX + 18, 32, 6, 10);
+        }
+    };
+
+    drawRobotFrame(0, 0);   // Stand
+    drawRobotFrame(32, 1);  // Left Up
+    drawRobotFrame(64, 0);  // Stand
+    drawRobotFrame(96, 2);  // Right Up
+
+    graphics.generateTexture('dude_run', 128, 48);
     graphics.clear();
 
     graphics.destroy();
+
+    // Add frames to the generated texture to act as a spritesheet
+    const dudeTexture = this.textures.get('dude_run');
+    // add(name, sourceIndex, x, y, width, height)
+    dudeTexture.add(0, 0, 0, 0, 32, 48);
+    dudeTexture.add(1, 0, 32, 0, 32, 48);
+    dudeTexture.add(2, 0, 64, 0, 32, 48);
+    dudeTexture.add(3, 0, 96, 0, 32, 48);
     // -------------------------
 
     // Background
@@ -96,31 +145,29 @@ function create() {
     nextPlatformX = 1000;
 
     // Player
-    player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude');
+    player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
-    // player.setTint(0x00ffff); // Already cyan
 
-    // Animations (Removed as we are using static textures)
-    /*
-    if (!this.anims.exists('left')) {
+    // Animations
+    if (!this.anims.exists('run')) {
         this.anims.create({
-            key: 'left',
-            frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+            key: 'run',
+            frames: this.anims.generateFrameNumbers('dude_run', { start: 0, end: 3 }),
             frameRate: 10,
             repeat: -1
         });
-        // ...
     }
-    player.anims.play('right', true);
-    */
+    player.anims.play('run', true);
 
     // Physics
     this.physics.add.collider(player, platforms);
     this.physics.add.overlap(player, stars, collectStar, null, this);
 
     // Camera
-    this.cameras.main.startFollow(player, true, 0.08, 0.08);
+    // Offset -250 puts the player to the left? Let's try inverting.
+    // If +250 put it on the right, -250 should put it on the left.
+    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, 0);
     this.cameras.main.setDeadzone(100, 100);
 
     // Input
@@ -154,7 +201,18 @@ function createUI(scene) {
     // Story Text
     let storyMsg = "System Online. Objective: Collect Coins.";
     if (robotVersion > 1) {
-        storyMsg = "Signal Lost. Consciousness uploaded to MK-" + robotVersion + ".";
+        if (lastDeathReason === 'fall' && !hasDoubleJump) {
+             storyMsg = "Gravity is harsh. A double jump would help!";
+        } else {
+            const messages = [
+                "Signal Lost. Consciousness uploaded to MK-" + robotVersion + ".",
+                "Previous unit scrapped. Optimizing algorithms...",
+                "Did you try not falling?",
+                "Error 404: Floor not found.",
+                "Rebooting... Please don't die this time."
+            ];
+            storyMsg = messages[Math.floor(Math.random() * messages.length)];
+        }
     }
 
     storyText = scene.add.text(gameWidth / 2, gameHeight - 100, storyMsg, {
@@ -203,6 +261,7 @@ function update() {
 
     // Death Logic
     if (player.y > gameHeight + 200) {
+        lastDeathReason = 'fall';
         respawn(this);
     }
 
