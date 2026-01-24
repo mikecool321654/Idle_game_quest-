@@ -26,7 +26,9 @@ let mountains;
 let stars;
 let spikes;
 let monsters;
+let lasers; // New Group
 let cursors;
+let keyZ, keyX; // New Keys
 let nextPlatformX = 0;
 let lastPlatformY = 0;
 let gameWidth;
@@ -40,7 +42,11 @@ window.gameState = window.gameState || {
     hasTripleJump: false,
     hasJetpack: false,
     hasArmor: false,
+    hasShield: false, // New
+    hasSword: false, // New
+    hasLaser: false, // New
     hasCoinMaker: false,
+    coinMakerLevel: 1, // New (1 = default, 2 = factory)
     hasGem: false,
     lastDeathReason: ''
 };
@@ -70,9 +76,8 @@ function create() {
     gameWidth = this.scale.width;
     gameHeight = this.scale.height;
 
-    // Register UpgradeScene if not already (assuming it is loaded)
+    // Register UpgradeScene if not already
     if (!this.scene.get('UpgradeScene')) {
-        // UpgradeScene should be available globally if loaded via script
         if (typeof UpgradeScene !== 'undefined') {
             this.scene.add('UpgradeScene', UpgradeScene, false);
         }
@@ -111,7 +116,7 @@ function create() {
     graphics.generateTexture('cloud', 80, 50);
     graphics.clear();
 
-    // Mountain (Distant Object)
+    // Mountain
     graphics.fillStyle(0x444477, 1);
     graphics.beginPath();
     graphics.moveTo(0, 100);
@@ -119,7 +124,6 @@ function create() {
     graphics.lineTo(100, 100);
     graphics.closePath();
     graphics.fillPath();
-    // Snow Cap
     graphics.fillStyle(0xffffff, 1);
     graphics.beginPath();
     graphics.moveTo(50, 0);
@@ -131,16 +135,14 @@ function create() {
     graphics.clear();
 
     // Ground
-    graphics.fillStyle(0x66cc66, 1); // Grassy Green
+    graphics.fillStyle(0x66cc66, 1);
     graphics.fillRect(0, 0, 32, 32);
-    // Grass blades
     graphics.fillStyle(0x44aa44, 1);
     graphics.beginPath();
     graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
     graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
     graphics.closePath();
     graphics.fillPath();
-    // Dirt details
     graphics.fillStyle(0x553311, 1);
     graphics.fillCircle(16, 20, 2);
     graphics.fillCircle(24, 28, 3);
@@ -159,16 +161,14 @@ function create() {
     graphics.clear();
 
     // Monster
-    graphics.fillStyle(0xcc0000, 1); // Dark Red
+    graphics.fillStyle(0xcc0000, 1);
     graphics.fillRect(0, 0, 32, 32);
-    // Eyes
-    graphics.fillStyle(0xffff00, 1); // Yellow eyes
+    graphics.fillStyle(0xffff00, 1);
     graphics.fillCircle(8, 10, 4);
     graphics.fillCircle(24, 10, 4);
-    graphics.fillStyle(0x000000, 1); // Pupils
+    graphics.fillStyle(0x000000, 1);
     graphics.fillCircle(8, 10, 1);
     graphics.fillCircle(24, 10, 1);
-    // Teeth
     graphics.fillStyle(0xffffff, 1);
     graphics.beginPath();
     graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
@@ -179,21 +179,20 @@ function create() {
     graphics.generateTexture('monster', 32, 32);
     graphics.clear();
 
-    // Star (Coin)
-    graphics.fillStyle(0xFFD700, 1); // Gold
+    // Star
+    graphics.fillStyle(0xFFD700, 1);
     graphics.fillCircle(12, 12, 10);
-    graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
+    graphics.lineStyle(2, 0xB8860B, 1);
     graphics.strokeCircle(12, 12, 10);
-    graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
+    graphics.fillStyle(0xFFFACD, 0.5);
     graphics.fillCircle(9, 9, 3);
-    // Extra Detail
     graphics.fillStyle(0xFFFACD, 1);
     graphics.fillCircle(12, 12, 5);
     graphics.generateTexture('star', 24, 24);
     graphics.clear();
 
-    // Gem (Objective)
-    graphics.fillStyle(0x00ffff, 1); // Cyan
+    // Gem
+    graphics.fillStyle(0x00ffff, 1);
     graphics.beginPath();
     graphics.moveTo(12, 0);
     graphics.lineTo(24, 12);
@@ -204,7 +203,7 @@ function create() {
     graphics.generateTexture('gem', 24, 24);
     graphics.clear();
 
-    // Gear (Settings Icon)
+    // Gear
     graphics.fillStyle(0x888888, 1);
     graphics.fillCircle(16, 16, 10);
     graphics.lineStyle(4, 0x888888);
@@ -216,91 +215,96 @@ function create() {
         graphics.lineTo(x, y);
     }
     graphics.strokePath();
-    graphics.fillStyle(0x000000, 1); // Hole
+    graphics.fillStyle(0x000000, 1);
     graphics.fillCircle(16, 16, 4);
     graphics.generateTexture('gear', 32, 32);
     graphics.clear();
 
-    // Dude (Robot) Sprite Sheet
-    // 32x48
+    // Sword
+    graphics.clear();
+    graphics.lineStyle(2, 0x00ffff, 1); // Cyan Blade
+    graphics.beginPath();
+    graphics.moveTo(8, 24);
+    graphics.lineTo(24, 8);
+    graphics.strokePath();
+    graphics.lineStyle(2, 0x888888, 1); // Hilt
+    graphics.beginPath();
+    graphics.moveTo(6, 26);
+    graphics.lineTo(10, 22);
+    graphics.strokePath();
+    graphics.generateTexture('sword', 32, 32);
+    graphics.clear();
+
+    // Laser
+    graphics.fillStyle(0x00ff00, 1); // Green Laser
+    graphics.fillRect(0, 0, 32, 8);
+    graphics.generateTexture('laser', 32, 8);
+    graphics.clear();
+
+    // Slash Effect
+    graphics.lineStyle(4, 0xffffff, 1);
+    graphics.beginPath();
+    graphics.arc(16, 16, 16, -1, 1, false);
+    graphics.strokePath();
+    graphics.generateTexture('slash', 32, 32);
+    graphics.clear();
+
+    // Dude Sprite
     const drawRobotFrame = (offsetX, frameType) => {
         const cBody = 0xffffff;
         const cDark = 0x333333;
-        const cEye = 0x00ffff; // Cyan eye
+        const cEye = 0x00ffff;
         const cAntenna = 0xff0000;
         const cLimbs = 0x555555;
-
-        // Limbs function
         const drawLimb = (x, y, w, h) => {
              graphics.fillStyle(cLimbs, 1);
              graphics.fillRoundedRect(offsetX + x, y, w, h, 2);
         };
-
-        // Legs (Behind)
-        if (frameType === 1) drawLimb(8, 34, 5, 10); // Back leg up
-        else drawLimb(10, 34, 5, 14); // Back leg down
-
-        // Body
+        if (frameType === 1) drawLimb(8, 34, 5, 10);
+        else drawLimb(10, 34, 5, 14);
         graphics.fillStyle(cBody, 1);
-        graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8); // Round body
-
-        // Head
+        graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8);
         graphics.fillStyle(cBody, 1);
-        graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10); // Round head
-
-        // Face / Visor
+        graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10);
         graphics.fillStyle(cDark, 1);
         graphics.fillRoundedRect(offsetX + 6, 6, 20, 12, 4);
-
-        // Eyes
         graphics.fillStyle(cEye, 1);
         graphics.fillCircle(offsetX + 12, 12, 3);
         graphics.fillCircle(offsetX + 20, 12, 3);
-
-        // Antenna
         graphics.lineStyle(2, cDark);
         graphics.lineBetween(offsetX + 16, 0, offsetX + 16, -5);
         graphics.fillStyle(cAntenna, 1);
         graphics.fillCircle(offsetX + 16, -5, 3);
-
-        // Arms (Side/Front)
-        // Simple arm logic
         drawLimb(12, 20, 4, 12);
-
-        // Legs (Front)
-        if (frameType === 2) drawLimb(22, 34, 5, 10); // Front leg up
-        else if (frameType === 3) { // Jump
+        if (frameType === 2) drawLimb(22, 34, 5, 10);
+        else if (frameType === 3) {
              drawLimb(8, 32, 5, 10);
              drawLimb(20, 30, 5, 10);
         }
-        else drawLimb(18, 34, 5, 14); // Front leg down
+        else drawLimb(18, 34, 5, 14);
     };
 
-    drawRobotFrame(0, 0);   // Stand
-    drawRobotFrame(32, 1);  // Left Up
-    drawRobotFrame(64, 0);  // Stand
-    drawRobotFrame(96, 2);  // Right Up
-    drawRobotFrame(128, 3); // Jump
+    drawRobotFrame(0, 0);
+    drawRobotFrame(32, 1);
+    drawRobotFrame(64, 0);
+    drawRobotFrame(96, 2);
+    drawRobotFrame(128, 3);
 
     graphics.generateTexture('dude_run', 160, 48);
     graphics.clear();
-
     graphics.destroy();
 
-    // Add frames to the generated texture to act as a spritesheet
     const dudeTexture = this.textures.get('dude_run');
-    // add(name, sourceIndex, x, y, width, height)
     dudeTexture.add(0, 0, 0, 0, 32, 48);
     dudeTexture.add(1, 0, 32, 0, 32, 48);
     dudeTexture.add(2, 0, 64, 0, 32, 48);
     dudeTexture.add(3, 0, 96, 0, 32, 48);
     dudeTexture.add(4, 0, 128, 0, 32, 48);
-    // -------------------------
 
     // Background
     this.cameras.main.setBackgroundColor('#87CEEB');
 
-    // Mountains (Distant Objects)
+    // Mountains
     mountains = this.add.group();
     for (let i = 0; i < 5; i++) {
         let x = Phaser.Math.Between(2000, 4000);
@@ -309,20 +313,20 @@ function create() {
         mountain.setOrigin(0.5, 1);
         let scale = Phaser.Math.FloatBetween(2.0, 4.0);
         mountain.setScale(scale);
-        mountain.setScrollFactor(0.1); // Move very slowly
-        mountain.setDepth(-10); // Behind everything
+        mountain.setScrollFactor(0.1);
+        mountain.setDepth(-10);
         mountain.setTint(0x8888aa);
     }
 
     // Clouds
     clouds = this.add.group();
-    for (let i = 0; i < 300; i++) { // Increased clouds
+    for (let i = 0; i < 300; i++) {
         let x = Phaser.Math.Between(0, gameWidth);
         let y = Phaser.Math.Between(0, gameHeight * 0.9);
         let cloud = clouds.create(x, y, 'cloud');
         let scale = Phaser.Math.FloatBetween(0.5, 1.5);
         cloud.setScale(scale);
-        cloud.setScrollFactor(0.3 + (scale * 0.1)); // Larger clouds move faster (closer)
+        cloud.setScrollFactor(0.3 + (scale * 0.1));
         cloud.alpha = 0.8;
     }
 
@@ -330,7 +334,8 @@ function create() {
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
     spikes = this.physics.add.staticGroup();
-    monsters = this.physics.add.group(); // Dynamic group for moving monsters
+    monsters = this.physics.add.group();
+    lasers = this.physics.add.group(); // New
     gemGroup = this.physics.add.staticGroup();
 
     // Initial Setup
@@ -339,12 +344,17 @@ function create() {
     bigHoleGenerated = false;
     jumps = 0;
     this.lastStoryMilestone = 0;
-    this.startTime = this.time.now; // Track start time for "Armor Zone"
+    this.startTime = this.time.now;
 
     // Coin Maker Upgrade
     if (window.gameState.hasCoinMaker) {
+        let delay = 1000;
+        if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
+            delay = 500; // Faster generation
+        }
+
         this.time.addEvent({
-            delay: 1000,
+            delay: delay,
             callback: () => {
                 window.gameState.coins++;
                 if (scoreText) scoreText.setText(window.gameState.coins);
@@ -356,7 +366,6 @@ function create() {
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
-    // Starting Coins
     for(let k=0; k<4; k++) {
         stars.create(400 + k*60, lastPlatformY - 50, 'star');
     }
@@ -381,32 +390,46 @@ function create() {
     // Physics
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, spikes, hitSpike, null, this);
-    this.physics.add.collider(monsters, platforms); // Monsters walk on platforms
-    this.physics.add.overlap(player, monsters, hitSpike, null, this); // Same death logic as spikes
+    this.physics.add.collider(monsters, platforms);
+    this.physics.add.overlap(player, monsters, hitMonster, null, this); // Changed callback
     this.physics.add.overlap(player, stars, collectStar, null, this);
     this.physics.add.overlap(player, gemGroup, collectGem, null, this);
+    this.physics.add.overlap(lasers, monsters, laserHitMonster, null, this); // Laser collision
 
     // Camera
-    // Offset -250 puts the player to the left.
-    // Positive Y offset moves camera up/keeps player lower on screen (based on empirically observed behavior).
     const camOffsetY = (gameHeight * 0.15);
     this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
+    keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+
     this.input.on('pointerdown', (pointer) => {
         if (pointer.y > 100) {
              handleJump();
         }
     });
 
+    // Key listeners for actions
+    keyZ.on('down', () => {
+        if (window.gameState.hasSword) handleSword(this);
+    });
+    keyX.on('down', () => {
+        if (window.gameState.hasLaser) handleLaser(this);
+    });
+
     // UI Setup
     createUI(this);
+
+    // Expose for debugging/testing
+    this.monsters = monsters;
+    this.clouds = clouds;
+    this.player = player;
 }
 
 function createUI(scene) {
-    // Coin Icon and Score
     scene.add.image(24, 32, 'star').setScrollFactor(0);
     scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
 
@@ -422,7 +445,6 @@ function createUI(scene) {
 
     scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
 
-    // Settings Button (Gear Icon)
     scene.add.image(30, 100, 'gear')
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
@@ -431,9 +453,9 @@ function createUI(scene) {
     createSettingsUI(scene);
     createMinimap(scene);
 
-    // Story Text
     let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
     if (window.gameState.robotVersion > 1) {
+        // ... (Same lore messages logic)
         const loreMessages = [
             "Command Center: We are the Overwatch. We guide you to the Gem.",
             "Command Center: The Gem is the key to our survival.",
@@ -459,11 +481,16 @@ function createUI(scene) {
              ];
              if (!window.gameState.hasDoubleJump) {
                  fallMessages.push("Command Center: Gravity is harsh. A double jump would help!");
-                 fallMessages.push("Command Center: If only you could jump again in mid-air...");
              }
              storyMsg = Phaser.Utils.Array.GetRandom(fallMessages);
         } else if (window.gameState.lastDeathReason === 'spike' && !window.gameState.hasArmor) {
              storyMsg = "Command Center: Spikes detected. Armor plating recommended.";
+        } else if (window.gameState.lastDeathReason === 'monster') {
+             if (window.gameState.hasSword || window.gameState.hasLaser) {
+                 storyMsg = "Command Center: You have weapons. Use them.";
+             } else {
+                 storyMsg = "Command Center: Hostile organism detected. Avoidance advised.";
+             }
         } else {
              if (Phaser.Math.Between(0, 100) > 60) {
                  storyMsg = Phaser.Utils.Array.GetRandom(loreMessages);
@@ -471,6 +498,13 @@ function createUI(scene) {
                  storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
              }
         }
+    }
+
+    // New Control Hints
+    if (window.gameState.hasSword && !window.gameState.hasLaser) {
+        storyMsg += " [Press Z to Attack]";
+    } else if (window.gameState.hasLaser) {
+        storyMsg += " [Press Z: Sword | X: Laser]";
     }
 
     storyText = scene.add.text(gameWidth / 2, gameHeight - 40, storyMsg, {
@@ -484,7 +518,6 @@ function createUI(scene) {
     .setOrigin(0.5)
     .setScrollFactor(0);
 
-    // Fade out story text after a few seconds
     scene.time.delayedCall(8000, () => {
         scene.tweens.add({
             targets: storyText,
@@ -497,19 +530,16 @@ function createUI(scene) {
 }
 
 function update() {
-    // Auto run
     player.setVelocityX(250);
 
-    // Animation
     if (player.body.touching.down) {
         player.anims.play('run', true);
-        jumps = 0; // Reset jumps when grounded
+        jumps = 0;
     } else {
         player.anims.stop();
-        player.setFrame(4); // Jump frame
+        player.setFrame(4);
     }
 
-    // Clouds Recycling
     const camX = this.cameras.main.scrollX;
     clouds.children.iterate((cloud) => {
         if (cloud.x < camX - 400) {
@@ -518,43 +548,38 @@ function update() {
         }
     });
 
-    // Monster Patrol
     monsters.children.iterate((monster) => {
         if (monster.body.touching.down) {
-            // Simple patrol: change direction occasionally
             if (Math.random() < 0.02) {
                 monster.setVelocityX(Phaser.Math.Between(-50, 50));
             }
-            // If stopped, start moving
             if (monster.body.velocity.x === 0) {
                  monster.setVelocityX(Phaser.Math.Between(-30, 30));
             }
         }
     });
 
-    // Mountains Recycling
+    // Clean up Lasers
+    lasers.children.iterate((laser) => {
+        if (laser && laser.x > camX + gameWidth + 100) {
+            laser.destroy();
+        }
+    });
+
     mountains.children.iterate((mtn) => {
-        // Since scrollFactor is 0.1, we need to calculate world position relative to camera carefully
-        // Or just let them be, but eventually they will go off screen if the world moves endlessly?
-        // With scrollFactor < 1, they move slower than camera.
-        // Eventually the camera will pass them.
-        // We can just respawn them ahead.
-        if (mtn.x < camX - 1000) { // arbitrary threshold
+        if (mtn.x < camX - 1000) {
              mtn.x = camX + gameWidth + Phaser.Math.Between(200, 800);
         }
     });
 
-    // Jump Input (Keyboard)
     if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
         handleJump();
     }
 
-    // Jetpack Logic
     if (window.gameState.hasJetpack && (cursors.space.isDown || cursors.up.isDown) && !player.body.touching.down) {
         player.setVelocityY(-300);
     }
 
-    // Level Generation
     const scrollX = this.cameras.main.scrollX;
     const rightEdge = scrollX + gameWidth;
 
@@ -562,13 +587,11 @@ function update() {
         spawnNextPlatform(this);
     }
 
-    // Death Logic
-    if (player.y > lastPlatformY + 300) { // Increased threshold slightly and relative to platform level
+    if (player.y > lastPlatformY + 300) {
         window.gameState.lastDeathReason = 'fall';
         respawn(this);
     }
 
-    // Story Milestones
     const dist = Math.floor(player.x);
     if (dist > 1000 && this.lastStoryMilestone < 1000) {
         showStoryMessage(this, "Command Center: Atmospheric density increasing. Thrusters at 90%.");
@@ -584,26 +607,16 @@ function update() {
         this.lastStoryMilestone = 4500;
     }
 
-    // Minimap Update
     if (minimapContainer && minimapPlayer) {
         const GOAL_X = 15000;
         const MAP_WIDTH = 200;
         const MAP_HEIGHT = 100;
         const scaleX = MAP_WIDTH / GOAL_X;
         const scaleY = MAP_HEIGHT / gameHeight;
-
-        // Player Position on Minimap
-        // Map X: 0 to MAP_WIDTH
         let px = Phaser.Math.Clamp(player.x * scaleX, 0, MAP_WIDTH);
-        // Map Y: Invert Y? No, simple scaling. 0 is top.
         let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
-
         minimapPlayer.setPosition(px, py);
-
-        // Gem Position on Minimap (Fixed at Goal)
-        // If Gem is not spawned yet, we show it at the end
-        // If Gem is spawned, we could track its real position, but fixed goal is fine for "Objective"
-        minimapGem.setPosition(MAP_WIDTH - 5, 10); // Top Right of Minimap
+        minimapGem.setPosition(MAP_WIDTH - 5, 10);
     }
 
     cleanup(this);
@@ -612,44 +625,26 @@ function update() {
 function cleanup(scene) {
     const scrollX = scene.cameras.main.scrollX;
     const cleanupThreshold = scrollX - 200;
-
-    // Cleanup Platforms
     const pChildren = platforms.getChildren();
     for (let i = pChildren.length - 1; i >= 0; i--) {
         const child = pChildren[i];
-        if (child.x + child.displayWidth / 2 < cleanupThreshold) {
-            child.destroy();
-        }
+        if (child.x + child.displayWidth / 2 < cleanupThreshold) child.destroy();
     }
-
-    // Cleanup Stars
     const sChildren = stars.getChildren();
     for (let i = sChildren.length - 1; i >= 0; i--) {
         const child = sChildren[i];
-        if (child.x < cleanupThreshold) {
-            child.destroy();
-        }
+        if (child.x < cleanupThreshold) child.destroy();
     }
-
-    // Cleanup Spikes
     const kChildren = spikes.getChildren();
     for (let i = kChildren.length - 1; i >= 0; i--) {
         const child = kChildren[i];
-        if (child.x < cleanupThreshold) {
-            child.destroy();
-        }
+        if (child.x < cleanupThreshold) child.destroy();
     }
-
-    // Cleanup Monsters
     const mChildren = monsters.getChildren();
     for (let i = mChildren.length - 1; i >= 0; i--) {
         const child = mChildren[i];
-        if (child.x < cleanupThreshold) {
-            child.destroy();
-        }
-        else if (child.y > gameHeight + 100) { // Monster fell off
-            child.destroy();
-        }
+        if (child.x < cleanupThreshold) child.destroy();
+        else if (child.y > gameHeight + 100) child.destroy();
     }
 }
 
@@ -664,6 +659,42 @@ function handleJump() {
         player.setVelocityY(-500);
         jumps = 3;
     }
+}
+
+function handleSword(scene) {
+    // Visual
+    const slash = scene.add.sprite(player.x + 40, player.y, 'slash');
+    scene.tweens.add({
+        targets: slash,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => slash.destroy()
+    });
+
+    showStoryMessage(scene, "Command Center: Target neutralized.");
+
+    // Hitbox logic
+    monsters.children.iterate((monster) => {
+        if (!monster.active) return;
+        const dx = monster.x - player.x;
+        const dy = Math.abs(monster.y - player.y);
+        if (dx > 0 && dx < 80 && dy < 50) {
+             monster.destroy();
+        }
+    });
+}
+
+function handleLaser(scene) {
+    const laser = lasers.create(player.x + 20, player.y, 'laser');
+    laser.setVelocityX(600);
+    laser.body.allowGravity = false;
+    showStoryMessage(scene, "Command Center: Laser discharged.");
+}
+
+function laserHitMonster(laser, monster) {
+    laser.destroy();
+    monster.destroy();
+    showStoryMessage(laser.scene, "Command Center: Target neutralized.");
 }
 
 function respawn(scene) {
@@ -686,103 +717,73 @@ function spawnNextPlatform(scene) {
     let width = Phaser.Math.Between(200, 600);
     let y = lastPlatformY;
     const TUTORIAL_LIMIT = 3000;
-
-    // Tutorial Phase: Continuous ground
     if (nextPlatformX < TUTORIAL_LIMIT) {
         gap = 0;
         width = Phaser.Math.Between(400, 800);
     }
-
-    // Armor Zone Logic: After 30 seconds, force a dangerous zone
-    // We'll create a platform completely covered in spikes occasionally if time > 30s
     let isArmorZone = false;
     if (scene.startTime && (scene.time.now - scene.startTime > 30000)) {
-        // 20% chance to spawn an Armor Zone segment
         if (Phaser.Math.Between(0, 100) < 20) {
              isArmorZone = true;
-             width = 600; // Fixed width for the zone
+             width = 600;
         }
     }
-
-    // Big Hole Logic
     if (!bigHoleGenerated && nextPlatformX > 3000) {
         gap = 450;
         bigHoleGenerated = true;
         width = 800;
     }
-
     let startX = nextPlatformX + gap;
     createPlatform(scene, startX, y, width);
-
-    // Green Platform (Second Level) - Accessible via Triple Jump
     if (nextPlatformX > 2000 && Phaser.Math.Between(0, 100) < 30) {
-        let highY = y - 350; // Needs triple jump or good double jump
-        createPlatform(scene, startX, highY, Phaser.Math.Between(200, 400), null); // null tint = default green
-
-        // Add coins on top
+        let highY = y - 350;
+        createPlatform(scene, startX, highY, Phaser.Math.Between(200, 400), null);
         for(let k=0; k<3; k++) {
              stars.create(startX + (k*50), highY - 50, 'star');
         }
     }
-
-    // Unreachable Platform (Decorative/Taunt)
-    if (Phaser.Math.Between(0, 100) < 10) { // 10% chance
+    if (Phaser.Math.Between(0, 100) < 10) {
         let unreachY = y - Phaser.Math.Between(300, 400);
         let unreachPlat = platforms.create(startX, unreachY, 'ground');
         unreachPlat.displayWidth = 200;
         unreachPlat.displayHeight = 32;
         unreachPlat.refreshBody();
-        unreachPlat.setTint(0x555555); // Greyed out
-        // Add a lot of coins on the top platform
+        unreachPlat.setTint(0x555555);
         for(let k=0; k<5; k++) {
              stars.create(startX - 80 + (k*40), unreachY - 50, 'star');
         }
     }
-
-    // Spawn Stars
     const numStars = Phaser.Math.Between(0, 3);
     const step = width / (numStars + 1);
     for(let i=1; i<=numStars; i++) {
-        // "The coins should be a bit higher so we should get them more easily with a jump"
         let starY = y - 150;
         stars.create(startX + (i*step), starY, 'star');
     }
-
-    // Spawn Spikes
     if (isArmorZone) {
-        // Dense spikes covering the platform
         const spikeWidth = 32;
         const numSpikes = Math.floor(width / spikeWidth);
         for(let i=0; i<numSpikes; i++) {
              spikes.create(startX + (i*spikeWidth) + 16, y - 32, 'spike');
         }
     } else if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
-        // Normal spike generation
-        if (Phaser.Math.Between(0, 100) < 25) { // 25% chance per platform
+        if (Phaser.Math.Between(0, 100) < 25) {
             const numSpikes = 1;
             for(let i=0; i<numSpikes; i++) {
-                 // Random position on platform, avoiding edges slightly
                  let sx = startX + Phaser.Math.Between(50, width - 50);
                  spikes.create(sx, y - 32, 'spike');
             }
         }
     }
-
-    // Spawn Monster
-    if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < 30) { // 30% chance after 4000px
+    if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < 30) {
          let mx = startX + Phaser.Math.Between(50, width - 50);
          let monster = monsters.create(mx, y - 50, 'monster');
          monster.setBounce(1);
          monster.setCollideWorldBounds(false);
          monster.setVelocityX(Phaser.Math.Between(-40, 40));
     }
-
-    // Spawn Gem (Objective)
     if (!window.gameState.hasGem && nextPlatformX > 15000 && gemGroup.getLength() === 0) {
          gemGroup.create(startX + width / 2, y - 60, 'gem');
     }
-
-    // Update state
     nextPlatformX += gap + width;
     lastPlatformY = y;
 }
@@ -792,6 +793,25 @@ function hitSpike(player, spike) {
         return;
     }
     window.gameState.lastDeathReason = 'spike';
+    respawn(player.scene);
+}
+
+function hitMonster(player, monster) {
+    if (window.gameState.hasShield) {
+        // Shield saves you once? Or always?
+        // Description: "Provides additional layer of protection."
+        // Armor handles Spikes. Shield handles Monsters.
+        // Let's make it reflect/bounce for now.
+        if (player.body.touching.down) {
+             player.setVelocityY(-400);
+        } else {
+             player.setVelocityY(-300);
+             player.setVelocityX(-300);
+        }
+        return;
+    }
+    // If no shield, die
+    window.gameState.lastDeathReason = 'monster';
     respawn(player.scene);
 }
 
@@ -812,8 +832,6 @@ function showStoryMessage(scene, msg) {
     if (!storyText) return;
     storyText.setText(msg);
     storyText.setAlpha(1);
-
-    // Reset fade out
     scene.tweens.killTweensOf(storyText);
     scene.time.delayedCall(8000, () => {
         scene.tweens.add({
@@ -825,7 +843,6 @@ function showStoryMessage(scene, msg) {
 }
 
 function handleShopAction(scene) {
-    // Open Upgrade Scene if available
     if (scene && scene.scene.get('UpgradeScene')) {
         scene.scene.launch('UpgradeScene');
         scene.physics.pause();
@@ -835,7 +852,6 @@ function handleShopAction(scene) {
 function updateShopUI() {
     let text = 'UPGRADES [B]';
     let color = '#0f0';
-
     if (shopText) {
         shopText.setText(text);
         shopText.setColor(color);
@@ -844,21 +860,13 @@ function updateShopUI() {
 
 function createSettingsUI(scene) {
     settingsContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(100).setVisible(false);
-
-    // Background
     const bg = scene.add.rectangle(gameWidth/2, gameHeight/2, gameWidth, gameHeight, 0x000000, 0.8);
     settingsContainer.add(bg);
-
-    // Title
     const title = scene.add.text(gameWidth/2, 100, 'SETTINGS', { fontSize: '40px', fill: '#fff', fontFamily: 'Courier' }).setOrigin(0.5);
     settingsContainer.add(title);
-
-    // Ameliorations Text
     const amelText = scene.add.text(gameWidth/2, 200, '', { fontSize: '24px', fill: '#fff', align: 'center', fontFamily: 'Courier' }).setOrigin(0.5);
     amelText.setName('amelText');
     settingsContainer.add(amelText);
-
-    // Resume Button
     const resumeBtn = scene.add.text(gameWidth/2, 400, 'RESUME', { fontSize: '32px', fill: '#0f0', backgroundColor: '#333', fontFamily: 'Courier' })
         .setPadding(10)
         .setOrigin(0.5)
@@ -871,61 +879,33 @@ function createSettingsUI(scene) {
 }
 
 function createMinimap(scene) {
-    // Container in Bottom Right
-    const w = 200;
-    const h = 100;
-    const padding = 10;
-    // Position: gameWidth - w - padding, gameHeight - h - padding
-    // BUT we need to handle resize if possible, or just set it initially.
-    // Fixed Scroll Factor means we position it relative to Camera viewport (which matches gameWidth/Height logic if resize updates it)
-    // For now, let's put it at fixed offset.
-
-    // We can rely on gameWidth/gameHeight from create(), but if resized, it might drift?
-    // Let's assume resize updates `gameWidth`, `gameHeight`.
-    // To make it stick to bottom right, we might need to update its position in resize event.
-    // For now, let's put it and see.
-
-    minimapContainer = scene.add.container(gameWidth - w - 20, gameHeight - h - 20).setScrollFactor(0).setDepth(90);
-
-    // Background
-    const bg = scene.add.rectangle(w/2, h/2, w, h, 0x000000, 0.5);
+    minimapContainer = scene.add.container(gameWidth - 200 - 20, gameHeight - 100 - 20).setScrollFactor(0).setDepth(90);
+    const bg = scene.add.rectangle(100, 50, 200, 100, 0x000000, 0.5);
     bg.setStrokeStyle(2, 0xffffff);
     minimapContainer.add(bg);
-
-    // Player Dot
-    minimapPlayer = scene.add.circle(0, 0, 4, 0x00ff00); // Green
+    minimapPlayer = scene.add.circle(0, 0, 4, 0x00ff00);
     minimapContainer.add(minimapPlayer);
-
-    // Gem Dot
-    minimapGem = scene.add.circle(w - 5, 10, 4, 0x00ffff); // Cyan
+    minimapGem = scene.add.circle(195, 10, 4, 0x00ffff);
     minimapContainer.add(minimapGem);
-
-    // Handle resize to keep it in corner
     scene.scale.on('resize', (gameSize) => {
-        minimapContainer.setPosition(gameSize.width - w - 20, gameSize.height - h - 20);
+        minimapContainer.setPosition(gameSize.width - 200 - 20, gameSize.height - 100 - 20);
     });
 }
 
 function toggleSettings(scene) {
     const resumeBtn = scene.children.getByName('resumeBtn');
-
     if (scene.physics.world.isPaused) {
-        // If UpgradeScene is running, we might need to handle that.
-        // But this settings menu is separate.
         scene.physics.resume();
         settingsContainer.setVisible(false);
         if (resumeBtn) resumeBtn.setVisible(false);
     } else {
         scene.physics.pause();
-
-        // Update text
         let content = "AMELIORATIONS BOUGHT:\n\n";
         content += "Double Jump: " + (window.gameState.hasDoubleJump ? "YES" : "NO") + "\n";
         content += "Armor: " + (window.gameState.hasArmor ? "YES" : "NO") + "\n";
-
+        content += "Sword: " + (window.gameState.hasSword ? "YES" : "NO") + "\n"; // New
         const textObj = settingsContainer.getByName('amelText');
         if (textObj) textObj.setText(content);
-
         settingsContainer.setVisible(true);
         if (resumeBtn) resumeBtn.setVisible(true);
     }
