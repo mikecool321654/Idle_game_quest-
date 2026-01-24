@@ -217,7 +217,7 @@ function cleanup(scene) {
     const pChildren = platforms.getChildren();
     for (let i = pChildren.length - 1; i >= 0; i--) {
         const child = pChildren[i];
-        if (child.x < cleanupThreshold) {
+        if (child.x + child.displayWidth / 2 < cleanupThreshold) {
             child.destroy();
         }
     }
