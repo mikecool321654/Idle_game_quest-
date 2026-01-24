@@ -205,6 +205,31 @@ function update() {
     if (player.y > gameHeight + 200) {
         respawn(this);
     }
+
+    cleanup(this);
+}
+
+function cleanup(scene) {
+    const scrollX = scene.cameras.main.scrollX;
+    const cleanupThreshold = scrollX - 200;
+
+    // Cleanup Platforms
+    const pChildren = platforms.getChildren();
+    for (let i = pChildren.length - 1; i >= 0; i--) {
+        const child = pChildren[i];
+        if (child.x < cleanupThreshold) {
+            child.destroy();
+        }
+    }
+
+    // Cleanup Stars
+    const sChildren = stars.getChildren();
+    for (let i = sChildren.length - 1; i >= 0; i--) {
+        const child = sChildren[i];
+        if (child.x < cleanupThreshold) {
+            child.destroy();
+        }
+    }
 }
 
 function handleJump() {
