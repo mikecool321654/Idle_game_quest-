@@ -38,25 +38,22 @@ class UpgradeScene extends Phaser.Scene {
         // Nodes Definition
         // Core -> 4 Branches
         this.nodes = [
-            // Core
-            { id: 'core', name: 'System Core', cost: 0, x: 0, y: 0, parent: null, var: null, description: 'Command Center: Central processing unit. Operational.' },
-
             // Capability (North)
-            { id: 'jump', name: 'Jump', cost: 0, x: 0, y: -100, parent: 'core', var: null, description: 'Command Center: Basic mobility thrusters. Essential for traversal.' },
+            { id: 'jump', name: 'Jump', cost: 0, x: 0, y: -100, parent: null, var: null, description: 'Command Center: Basic mobility thrusters. Essential for traversal.' },
             { id: 'double', name: 'Double Jump', cost: 20, x: 0, y: -200, parent: 'jump', var: 'hasDoubleJump', description: 'Command Center: Mid-air secondary thruster. Access higher elevations.' },
             { id: 'triple', name: 'Triple Jump', cost: 50, x: 0, y: -300, parent: 'double', var: 'hasTripleJump', description: 'Command Center: Tertiary propulsion module. Maximum verticality.' },
             { id: 'jetpack', name: 'Jetpack', cost: 200, x: 0, y: -400, parent: 'triple', var: 'hasJetpack', description: 'Command Center: Sustained flight capability. Hold Jump to ascend.' },
 
             // Defense (West)
-            { id: 'armor', name: 'Armor', cost: 30, x: -150, y: 0, parent: 'core', var: 'hasArmor', description: 'Command Center: Ablative plating. Absorbs one kinetic impact.' },
+            { id: 'armor', name: 'Armor', cost: 30, x: -150, y: 0, parent: null, var: 'hasArmor', description: 'Command Center: Ablative plating. Absorbs one kinetic impact.' },
             { id: 'shield', name: 'Shield', cost: 100, x: -300, y: 0, parent: 'armor', var: 'hasShield', description: 'Command Center: Energy barrier. Provides additional layer of protection.' },
 
             // Attack (East)
-            { id: 'sword', name: 'Sword', cost: 50, x: 150, y: 0, parent: 'core', var: 'hasSword', description: 'Command Center: Close-range plasma blade. Press Z to neutralize targets.' },
+            { id: 'sword', name: 'Sword', cost: 50, x: 150, y: 0, parent: null, var: 'hasSword', description: 'Command Center: Close-range plasma blade. Press Z to neutralize targets.' },
             { id: 'laser', name: 'Laser', cost: 150, x: 300, y: 0, parent: 'sword', var: 'hasLaser', description: 'Command Center: Long-range photon emitter. Press X to fire.' },
 
             // Coin Making (South)
-            { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 0, y: 150, parent: 'core', var: 'hasCoinMaker', description: 'Command Center: Automated mining algorithm. Generates 1 coin/sec.' },
+            { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 0, y: 150, parent: null, var: 'hasCoinMaker', description: 'Command Center: Automated mining algorithm. Generates 1 coin/sec.' },
             { id: 'coinfactory', name: 'Coin Factory', cost: 100, x: 0, y: 250, parent: 'coinmaker', var: 'coinMakerLevel', description: 'Command Center: Optimization protocols. Increases generation to 2 coins/sec.' }
         ];
 
