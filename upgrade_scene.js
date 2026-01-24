@@ -11,6 +11,7 @@ class UpgradeScene extends Phaser.Scene {
 
         // Background
         this.add.rectangle(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 0x000000, 0.9);
+        this.add.grid(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 50, 50, 0x000000, 1, 0x003300, 0.5);
 
         // Title
         this.add.text(this.centerX, 50, 'AMELIORATION TREE', { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setOrigin(0.5);
@@ -25,10 +26,10 @@ class UpgradeScene extends Phaser.Scene {
         // Nodes Definition
         this.nodes = [
             { id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null },
-            { id: 'double', name: 'Double Jump', cost: 20, x: 0, y: 50, parent: 'jump', var: 'hasDoubleJump' },
-            { id: 'triple', name: 'Triple Jump', cost: 50, x: -150, y: -100, parent: 'double', var: 'hasTripleJump' },
-            { id: 'armor', name: 'Armor', cost: 100, x: 150, y: -100, parent: 'double', var: 'hasArmor' },
-            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -150, y: -250, parent: 'triple', var: 'hasJetpack' }
+            { id: 'double', name: 'Double Jump', cost: 20, x: -100, y: 50, parent: 'jump', var: 'hasDoubleJump' },
+            { id: 'armor', name: 'Armor', cost: 100, x: 100, y: 50, parent: 'jump', var: 'hasArmor' },
+            { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump' },
+            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack' }
         ];
 
         this.drawLines();
@@ -62,11 +63,16 @@ class UpgradeScene extends Phaser.Scene {
 
     drawLines() {
         const graphics = this.add.graphics();
-        graphics.lineStyle(4, 0xffffff);
+        graphics.lineStyle(4, 0x008800); // Cyberpunk Green
 
         this.nodes.forEach(node => {
             if (node.parent) {
                 const parent = this.nodes.find(n => n.id === node.parent);
+
+                // Visibility Check
+                let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                if (!parentOwned) return;
+
                 if (parent) {
                     graphics.lineBetween(this.centerX + node.x, this.centerY + node.y, this.centerX + parent.x, this.centerY + parent.y);
                 }
@@ -81,6 +87,17 @@ class UpgradeScene extends Phaser.Scene {
             const x = this.centerX + node.x;
             const y = this.centerY + node.y;
 
+            // Visibility Check
+            let isVisible = false;
+            if (node.id === 'jump') isVisible = true;
+            else {
+                const parent = this.nodes.find(n => n.id === node.parent);
+                let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                if (parentOwned) isVisible = true;
+            }
+
+            if (!isVisible) return;
+
             // Determine state
             let state = 'locked';
             let isOwned = (node.id === 'jump') || (window.gameState[node.var]);
@@ -88,7 +105,7 @@ class UpgradeScene extends Phaser.Scene {
             if (isOwned) {
                 state = 'owned';
             } else {
-                // Check parent
+                // Check parent (already checked for visibility, but double check logic)
                 const parent = this.nodes.find(n => n.id === node.parent);
                 let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
 
@@ -103,13 +120,20 @@ class UpgradeScene extends Phaser.Scene {
 
             // Colors
             let color = 0x555555;
-            if (state === 'owned') color = 0x00ff00;
-            if (state === 'available') color = 0xffff00;
-            if (state === 'poor') color = 0xcc8800; // Dark Orange
+            let strokeColor = 0xffffff;
+
+            if (state === 'owned') { color = 0x39FF14; strokeColor = 0x000000; } // Neon Green
+            if (state === 'available') { color = 0x00FFFF; strokeColor = 0xffffff; } // Cyan
+            if (state === 'poor') { color = 0xFFA500; strokeColor = 0xff0000; } // Orange
+
+            // Glow
+            if (state === 'owned' || state === 'available') {
+                 this.add.circle(x, y, 45, color, 0.3);
+            }
 
             // Shape
             const circle = this.add.circle(x, y, 40, color);
-            circle.setStrokeStyle(2, 0xffffff);
+            circle.setStrokeStyle(3, strokeColor);
 
             // Interaction
             if (state === 'available') {
