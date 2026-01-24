@@ -36,13 +36,28 @@ class UpgradeScene extends Phaser.Scene {
         });
 
         // Nodes Definition
+        // Core -> 4 Branches
         this.nodes = [
-{ id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null, description: 'Basic movement capability.' },
-            { id: 'double', name: 'Double Jump', cost: 20, x: -100, y: 50, parent: 'jump', var: 'hasDoubleJump', description: 'Jump a second time in mid-air.' },
-            { id: 'armor', name: 'Armor', cost: 30, x: 100, y: 50, parent: 'jump', var: 'hasArmor', description: 'Protects against one spike impact (Consumable).' },
-            { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump', description: 'Jump a third time in mid-air.' },
-            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack', description: 'Hold Jump while falling to fly.' },
-            { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker', description: 'Generates 1 coin every second.' }
+            // Core
+            { id: 'core', name: 'System Core', cost: 0, x: 0, y: 0, parent: null, var: null, description: 'Command Center: Central processing unit. Operational.' },
+
+            // Capability (North)
+            { id: 'jump', name: 'Jump', cost: 0, x: 0, y: -100, parent: 'core', var: null, description: 'Command Center: Basic mobility thrusters. Essential for traversal.' },
+            { id: 'double', name: 'Double Jump', cost: 20, x: 0, y: -200, parent: 'jump', var: 'hasDoubleJump', description: 'Command Center: Mid-air secondary thruster. Access higher elevations.' },
+            { id: 'triple', name: 'Triple Jump', cost: 50, x: 0, y: -300, parent: 'double', var: 'hasTripleJump', description: 'Command Center: Tertiary propulsion module. Maximum verticality.' },
+            { id: 'jetpack', name: 'Jetpack', cost: 200, x: 0, y: -400, parent: 'triple', var: 'hasJetpack', description: 'Command Center: Sustained flight capability. Hold Jump to ascend.' },
+
+            // Defense (West)
+            { id: 'armor', name: 'Armor', cost: 30, x: -150, y: 0, parent: 'core', var: 'hasArmor', description: 'Command Center: Ablative plating. Absorbs one kinetic impact.' },
+            { id: 'shield', name: 'Shield', cost: 100, x: -300, y: 0, parent: 'armor', var: 'hasShield', description: 'Command Center: Energy barrier. Provides additional layer of protection.' },
+
+            // Attack (East)
+            { id: 'sword', name: 'Sword', cost: 50, x: 150, y: 0, parent: 'core', var: 'hasSword', description: 'Command Center: Close-range plasma blade. Press Z to neutralize targets.' },
+            { id: 'laser', name: 'Laser', cost: 150, x: 300, y: 0, parent: 'sword', var: 'hasLaser', description: 'Command Center: Long-range photon emitter. Press X to fire.' },
+
+            // Coin Making (South)
+            { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 0, y: 150, parent: 'core', var: 'hasCoinMaker', description: 'Command Center: Automated mining algorithm. Generates 1 coin/sec.' },
+            { id: 'coinfactory', name: 'Coin Factory', cost: 100, x: 0, y: 250, parent: 'coinmaker', var: 'coinMakerLevel', description: 'Command Center: Optimization protocols. Increases generation to 2 coins/sec.' }
         ];
 
         // Description Text
@@ -58,24 +73,12 @@ class UpgradeScene extends Phaser.Scene {
     closeScene() {
         // Try to find the default scene
         let mainScene = this.scene.get('default');
-        // If 'default' key isn't used (implicit), look for active non-UpgradeScene
         if (!mainScene || !mainScene.sys.settings.active) {
              mainScene = this.scene.manager.getScenes(false).find(s => s.sys.settings.key !== 'UpgradeScene');
         }
 
         if (mainScene) {
             if (mainScene.physics) mainScene.physics.resume();
-            if (mainScene.createUI) {
-                // Refresh main scene UI text
-                // Since updateShopUI is a local function in create scope, we can't call it easily unless exposed.
-                // But we can update the variables it uses (gameState) which we did.
-                // We should update the text elements.
-                // Actually, handleShopAction calls updateShopUI.
-                // We can't access `updateShopUI` directly if it's not on the scene instance.
-                // Let's rely on game loop to update or user action.
-                // Or we can just restart the main scene? No.
-                // We can set a flag on the main scene?
-            }
         }
         this.scene.stop();
     }
@@ -87,14 +90,18 @@ class UpgradeScene extends Phaser.Scene {
         this.nodes.forEach(node => {
             if (node.parent) {
                 const parent = this.nodes.find(n => n.id === node.parent);
+                if (!parent) return;
 
                 // Visibility Check
-                let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                // Node is visible if parent is visible and owned.
+                // Actually here we just draw lines between nodes that are theoretically connected?
+                // Or only revealed ones?
+                // Let's stick to Fog of War logic: Line is visible if parent is owned.
+
+                let parentOwned = !parent.var || window.gameState[parent.var];
                 if (!parentOwned) return;
 
-                if (parent) {
-                    graphics.lineBetween(this.centerX + node.x, this.centerY + node.y, this.centerX + parent.x, this.centerY + parent.y);
-                }
+                graphics.lineBetween(this.centerX + node.x, this.centerY + node.y, this.centerX + parent.x, this.centerY + parent.y);
             }
         });
     }
@@ -107,11 +114,12 @@ class UpgradeScene extends Phaser.Scene {
             const y = this.centerY + node.y;
 
             // Visibility Check
+            // Node is visible if it is a root (no parent or core) OR parent is owned.
             let isVisible = false;
-            if (!node.parent || node.id === 'jump') isVisible = true;
+            if (!node.parent || node.id === 'core') isVisible = true;
             else {
                 const parent = this.nodes.find(n => n.id === node.parent);
-                let parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                let parentOwned = !parent.var || window.gameState[parent.var];
                 if (parentOwned) isVisible = true;
             }
 
@@ -119,7 +127,22 @@ class UpgradeScene extends Phaser.Scene {
 
             // Determine state
             let state = 'locked';
-            let isOwned = (node.id === 'jump') || (window.gameState[node.var]);
+            let isOwned = !node.var || window.gameState[node.var];
+
+            // Special handling for Level based var (Coin Factory)
+            // If var is a number (coinMakerLevel), "owned" means it equals 2 (since factory is lvl 2).
+            // Actually, let's just make coinMakerLevel = true/false? No, user requested improvement.
+            // Let's assume coinMakerLevel: 2 means we have factory.
+            // But window.gameState[node.var] returns a number if initialized as number.
+            // So if (window.gameState['coinMakerLevel']) might be true if > 0.
+            // Let's treat 'coinMakerLevel' as boolean "hasCoinFactory" for simplicity in tree logic?
+            // No, plan said "coinMakerLevel".
+            // If node.var === 'coinMakerLevel', check if value >= 2.
+
+            if (node.var === 'coinMakerLevel') {
+                if (window.gameState.coinMakerLevel >= 2) isOwned = true;
+                else isOwned = false;
+            }
 
             if (isOwned) {
                 state = 'owned';
@@ -128,7 +151,8 @@ class UpgradeScene extends Phaser.Scene {
                 let parentOwned = true;
                 if (node.parent) {
                     const parent = this.nodes.find(n => n.id === node.parent);
-                    parentOwned = (parent.id === 'jump') || (window.gameState[parent.var]);
+                    parentOwned = !parent.var || window.gameState[parent.var];
+                    if (parent.var === 'coinMakerLevel' && window.gameState.coinMakerLevel < 2) parentOwned = false; // logic for future levels
                 }
 
                 if (parentOwned) {
@@ -185,7 +209,12 @@ class UpgradeScene extends Phaser.Scene {
     buyUpgrade(node) {
         if (window.gameState.coins >= node.cost) {
             window.gameState.coins -= node.cost;
-            window.gameState[node.var] = true;
+
+            if (node.var === 'coinMakerLevel') {
+                window.gameState.coinMakerLevel = 2; // Set level 2
+            } else {
+                window.gameState[node.var] = true;
+            }
 
             // Refresh
             this.scene.restart();
