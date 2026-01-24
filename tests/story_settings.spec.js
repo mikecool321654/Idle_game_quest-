@@ -21,8 +21,8 @@ test('Settings menu opens and pauses game, story text is correct', async ({ page
   expect(storyText).toContain('Command Center: System Online');
   expect(storyText).toContain('Find the Gem');
 
-  // Click Settings Button (Screen coordinates 40, 90)
-  await page.mouse.click(40, 90);
+  // Click Settings Button (Screen coordinates 30, 100 - Gear Icon)
+  await page.mouse.click(30, 100);
 
   await page.waitForTimeout(500);
 
