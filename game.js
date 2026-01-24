@@ -19,6 +19,8 @@ const config = {
 let player;
 let platforms;
 let stars;
+let bombs;
+let diamonds;
 let cursors;
 let nextPlatformX = 0;
 let lastPlatformY = 0;
@@ -29,22 +31,36 @@ let gameHeight;
 let coins = 0;
 let robotVersion = 1;
 let hasDoubleJump = false;
+let hasDash = false;
+let dashCooldown = 0;
+let dataLogsCollected = 0;
 let bigHoleGenerated = false;
 let jumps = 0;
+
+const storyFragments = [
+    "Log 001: The factory automated itself years ago.",
+    "Log 002: Humans left when the sky turned grey.",
+    "Log 003: I found a memory chip labeled 'HOPE'.",
+    "Log 004: We are running to keep the power on.",
+    "Log 005: The signal originates from the Core."
+];
 
 // UI
 let scoreText;
 let robotText;
 let shopText;
+let dashShopText;
 let storyText;
 
 const game = new Phaser.Game(config);
 
 function preload() {
-    this.load.image('sky', 'https://labs.phaser.io/assets/skies/space2.png');
-    this.load.image('ground', 'https://labs.phaser.io/assets/sprites/platform.png');
-    this.load.image('star', 'https://labs.phaser.io/assets/sprites/star.png');
-    this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/phaser-dude.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.image('sky', 'assets/skies/space2.png');
+    this.load.image('ground', 'assets/sprites/platform.png');
+    this.load.image('star', 'assets/sprites/star.png');
+    this.load.image('bomb', 'assets/sprites/bomb.png');
+    this.load.image('diamond', 'assets/sprites/diamond.png');
+    this.load.spritesheet('dude', 'assets/sprites/phaser-dude.png', { frameWidth: 32, frameHeight: 48 });
 }
 
 function create() {
@@ -57,6 +73,8 @@ function create() {
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
+    bombs = this.physics.add.staticGroup();
+    diamonds = this.physics.add.staticGroup();
 
     // Initial Setup
     lastPlatformY = gameHeight - 50;
@@ -100,6 +118,8 @@ function create() {
     // Physics
     this.physics.add.collider(player, platforms);
     this.physics.add.overlap(player, stars, collectStar, null, this);
+    this.physics.add.collider(player, bombs, hitBomb, null, this);
+    this.physics.add.overlap(player, diamonds, collectDiamond, null, this);
 
     // Camera
     this.cameras.main.startFollow(player, true, 0.08, 0.08);
@@ -129,37 +149,43 @@ function createUI(scene) {
         .setInteractive()
         .on('pointerdown', () => buyDoubleJump());
 
+    let dashString = hasDash ? 'Dash Ability\nACQUIRED' : 'Buy Dash\n(100 Credits)';
+    let dashColor = hasDash ? '#0f0' : '#aaa';
+
+    dashShopText = scene.add.text(gameWidth - 250, 100, dashString, { fontSize: '24px', fill: dashColor, align: 'right', fontFamily: 'Courier' })
+        .setScrollFactor(0)
+        .setInteractive()
+        .on('pointerdown', () => buyDash());
+
     // Story Text
     let storyMsg = "System Online. Objective: Collect Credits.";
     if (robotVersion > 1) {
         storyMsg = "Signal Lost. Consciousness uploaded to MK-" + robotVersion + ".";
     }
-
-    storyText = scene.add.text(gameWidth / 2, gameHeight - 100, storyMsg, {
-        fontSize: '20px',
-        fill: '#0f0',
-        backgroundColor: '#00000088',
-        padding: { x: 10, y: 5 },
-        fontFamily: 'Courier'
-    })
-    .setOrigin(0.5)
-    .setScrollFactor(0);
-
-    // Fade out story text after a few seconds
-    scene.time.delayedCall(4000, () => {
-        scene.tweens.add({
-            targets: storyText,
-            alpha: 0,
-            duration: 1000
-        });
-    });
+    displayStoryText(scene, storyMsg);
 
     updateShopUI();
 }
 
 function update() {
+    // Dash Logic
+    let isDashing = (this.time.now < dashCooldown - 1700);
+
+    if (cursors.shift.isDown && hasDash && this.time.now > dashCooldown) {
+        dashCooldown = this.time.now + 2000;
+        player.setTint(0x0000ff); // Blue
+        this.time.delayedCall(300, () => {
+             player.setTint(0x00ffff); // Reset to Cyan
+        });
+        isDashing = true;
+    }
+
     // Auto run
-    player.setVelocityX(250);
+    if (isDashing) {
+        player.setVelocityX(600);
+    } else {
+        player.setVelocityX(250);
+    }
 
     // Reset jumps when grounded
     if (player.body.touching.down) {
@@ -211,23 +237,39 @@ function createPlatform(scene, x, y, width) {
 function spawnNextPlatform(scene) {
     let gap = Phaser.Math.Between(100, 200);
     let width = Phaser.Math.Between(200, 600);
-    let y = lastPlatformY;
+
+    // Verticality
+    let minY = 200;
+    let maxY = gameHeight - 100;
+    let y = Phaser.Math.Clamp(lastPlatformY + Phaser.Math.Between(-150, 150), minY, maxY);
 
     // Big Hole Logic
     if (!bigHoleGenerated && nextPlatformX > 3000) {
         gap = 450;
         bigHoleGenerated = true;
         width = 800;
+        y = lastPlatformY; // Keep flat for the big jump
     }
 
     let startX = nextPlatformX + gap;
     createPlatform(scene, startX, y, width);
 
-    // Spawn Stars
-    const numStars = Phaser.Math.Between(0, 3);
-    const step = width / (numStars + 1);
-    for(let i=1; i<=numStars; i++) {
-        stars.create(startX + (i*step), y - 40, 'star');
+    // Spawning Objects
+    let roll = Phaser.Math.Between(0, 100);
+
+    if (roll < 20) {
+        // Bomb
+        bombs.create(startX + width/2, y - 40, 'bomb').setTint(0xff0000);
+    } else if (roll < 30) {
+        // Diamond
+        diamonds.create(startX + width/2, y - 40, 'diamond').setTint(0x00ffff);
+    } else {
+        // Stars
+        const numStars = Phaser.Math.Between(0, 3);
+        const step = width / (numStars + 1);
+        for(let i=1; i<=numStars; i++) {
+            stars.create(startX + (i*step), y - 40, 'star');
+        }
     }
 
     // Update state
@@ -249,6 +291,18 @@ function buyDoubleJump() {
         scoreText.setText('Credits: ' + coins);
         shopText.setText('Double Jump\nACQUIRED');
         shopText.setColor('#0f0');
+        updateShopUI();
+    }
+}
+
+function buyDash() {
+    if (coins >= 100 && !hasDash) {
+        coins -= 100;
+        hasDash = true;
+        scoreText.setText('Credits: ' + coins);
+        dashShopText.setText('Dash Ability\nACQUIRED');
+        dashShopText.setColor('#0f0');
+        updateShopUI();
     }
 }
 
@@ -259,5 +313,57 @@ function updateShopUI() {
         } else {
             shopText.setColor('#aaa');
         }
+    }
+    if (!hasDash) {
+        if (coins >= 100) {
+            dashShopText.setColor('#ff0');
+        } else {
+            dashShopText.setColor('#aaa');
+        }
+    }
+}
+
+function displayStoryText(scene, text) {
+    if (storyText) storyText.destroy();
+
+    storyText = scene.add.text(gameWidth / 2, gameHeight - 100, text, {
+        fontSize: '20px',
+        fill: '#0f0',
+        backgroundColor: '#00000088',
+        padding: { x: 10, y: 5 },
+        fontFamily: 'Courier'
+    })
+    .setOrigin(0.5)
+    .setScrollFactor(0);
+
+    // Fade out story text after a few seconds
+    scene.time.delayedCall(4000, () => {
+        scene.tweens.add({
+            targets: storyText,
+            alpha: 0,
+            duration: 1000
+        });
+    });
+}
+
+function hitBomb(player, bomb) {
+    this.physics.pause();
+    player.setTint(0xff0000);
+    player.anims.play('turn');
+
+    this.time.delayedCall(1000, () => {
+        respawn(this);
+    });
+}
+
+function collectDiamond(player, diamond) {
+    diamond.disableBody(true, true);
+    dataLogsCollected++;
+
+    let story = storyFragments[dataLogsCollected - 1];
+    if (story) {
+        displayStoryText(this, story);
+    } else {
+        displayStoryText(this, "Log " + dataLogsCollected + ": [DATA CORRUPTED]");
     }
 }
