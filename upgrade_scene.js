@@ -37,13 +37,19 @@ class UpgradeScene extends Phaser.Scene {
 
         // Nodes Definition
         this.nodes = [
-            { id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null },
-            { id: 'double', name: 'Double Jump', cost: 20, x: -150, y: 50, parent: 'jump', var: 'hasDoubleJump' },
-            { id: 'armor', name: 'Armor', cost: 30, x: 150, y: 50, parent: 'jump', var: 'hasArmor' },
-            { id: 'triple', name: 'Triple Jump', cost: 50, x: -150, y: -100, parent: 'double', var: 'hasTripleJump' },
-            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -150, y: -250, parent: 'triple', var: 'hasJetpack' },
-            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 300, y: -200, parent: null, var: 'hasCoinMaker' }
+{ id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null, description: 'Basic movement capability.' },
+            { id: 'double', name: 'Double Jump', cost: 20, x: -100, y: 50, parent: 'jump', var: 'hasDoubleJump', description: 'Jump a second time in mid-air.' },
+            { id: 'armor', name: 'Armor', cost: 30, x: 100, y: 50, parent: 'jump', var: 'hasArmor', description: 'Protects against one spike impact (Consumable).' },
+            { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump', description: 'Jump a third time in mid-air.' },
+            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack', description: 'Hold Jump while falling to fly.' },
+            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker', description: 'Generates 1 coin every second.' }
         ];
+
+        // Description Text
+        this.descriptionText = this.add.text(this.centerX, this.gameHeight - 80, '', {
+            fontSize: '18px', fill: '#fff', backgroundColor: '#000000aa', padding: { x: 10, y: 5 }, align: 'center', fontFamily: 'Courier',
+            wordWrap: { width: this.gameWidth * 0.8 }
+        }).setOrigin(0.5).setScrollFactor(0);
 
         this.drawLines();
         this.drawNodes();
@@ -152,9 +158,19 @@ class UpgradeScene extends Phaser.Scene {
             circle.setStrokeStyle(3, strokeColor);
 
             // Interaction
+            // Hover logic for all visible nodes
+            circle.setInteractive({ useHandCursor: state === 'available' })
+                .on('pointerover', () => {
+                    this.descriptionText.setText(node.description);
+                    if (state === 'available' || state === 'owned') circle.setStrokeStyle(5, strokeColor);
+                })
+                .on('pointerout', () => {
+                    this.descriptionText.setText('');
+                    circle.setStrokeStyle(3, strokeColor);
+                });
+
             if (state === 'available') {
-                circle.setInteractive({ useHandCursor: true })
-                    .on('pointerdown', () => this.buyUpgrade(node));
+                circle.on('pointerdown', () => this.buyUpgrade(node));
             }
 
             // Label
