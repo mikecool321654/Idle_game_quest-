@@ -9,27 +9,40 @@ class UpgradeScene extends Phaser.Scene {
         this.centerX = this.gameWidth / 2;
         this.centerY = this.gameHeight / 2;
 
-        // Background
-        this.add.rectangle(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 0x000000, 0.9);
-        this.add.grid(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 50, 50, 0x000000, 1, 0x003300, 0.5);
+        // Background (Static)
+        this.add.rectangle(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 0x000000, 0.9).setScrollFactor(0);
+        // Grid (Large enough to pan)
+        this.add.grid(this.centerX, this.centerY, 4000, 4000, 50, 50, 0x000000, 1, 0x003300, 0.5);
 
-        // Title
-        this.add.text(this.centerX, 50, 'AMELIORATION TREE', { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setOrigin(0.5);
-        this.coinsText = this.add.text(this.centerX, 90, 'Coins: ' + window.gameState.coins, { fontSize: '24px', fill: '#ff0', fontFamily: 'Courier' }).setOrigin(0.5);
+        // Title (Static)
+        this.add.text(this.centerX, 50, 'AMELIORATION TREE', { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' })
+            .setOrigin(0.5).setScrollFactor(0);
+        this.coinsText = this.add.text(this.centerX, 90, 'Coins: ' + window.gameState.coins, { fontSize: '24px', fill: '#ff0', fontFamily: 'Courier' })
+            .setOrigin(0.5).setScrollFactor(0);
 
-        // Close Button
+        // Close Button (Static)
         const closeBtn = this.add.text(this.gameWidth - 40, 40, 'X', { fontSize: '40px', fill: '#f00' })
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
-            .on('pointerdown', () => this.closeScene());
+            .on('pointerdown', () => this.closeScene())
+            .setScrollFactor(0);
+
+        // Camera Pan Logic
+        this.input.on('pointermove', (p) => {
+            if (p.isDown) {
+                this.cameras.main.scrollX -= (p.x - p.prevPosition.x) / this.cameras.main.zoom;
+                this.cameras.main.scrollY -= (p.y - p.prevPosition.y) / this.cameras.main.zoom;
+            }
+        });
 
         // Nodes Definition
         this.nodes = [
             { id: 'jump', name: 'Jump', cost: 0, x: 0, y: 200, parent: null, var: null },
             { id: 'double', name: 'Double Jump', cost: 20, x: -100, y: 50, parent: 'jump', var: 'hasDoubleJump' },
-            { id: 'armor', name: 'Armor', cost: 100, x: 100, y: 50, parent: 'jump', var: 'hasArmor' },
+            { id: 'armor', name: 'Armor', cost: 30, x: 100, y: 50, parent: 'jump', var: 'hasArmor' },
             { id: 'triple', name: 'Triple Jump', cost: 50, x: -100, y: -100, parent: 'double', var: 'hasTripleJump' },
-            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack' }
+            { id: 'jetpack', name: 'Jetpack', cost: 200, x: -100, y: -250, parent: 'triple', var: 'hasJetpack' },
+            { id: 'coinmaker', name: 'Coin Maker', cost: 50, x: 100, y: -100, parent: 'armor', var: 'hasCoinMaker' }
         ];
 
         this.drawLines();

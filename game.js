@@ -22,6 +22,7 @@ const config = {
 let player;
 let platforms;
 let clouds;
+let mountains;
 let stars;
 let spikes;
 let cursors;
@@ -38,6 +39,7 @@ window.gameState = window.gameState || {
     hasTripleJump: false,
     hasJetpack: false,
     hasArmor: false,
+    hasCoinMaker: false,
     hasGem: false,
     lastDeathReason: ''
 };
@@ -76,10 +78,15 @@ function create() {
         gameWidth = gameSize.width;
         gameHeight = gameSize.height;
 
-
+        if (scoreText) scoreText.setPosition(16, 16);
+        if (robotText) robotText.setPosition(16, 50);
         if (shopText) shopText.setPosition(gameWidth - 16, 16);
         if (storyText) {
-             storyText.setPosition(gameWidth / 2, gameHeight - 40);
+             // Move story text to top area if requested, but bottom is standard for subtitles.
+             // User said "put it at the top" regarding "text position".
+             // Assuming they meant the status text or maybe the story text was cut off.
+             // Let's try putting story text near the top, under the HUD.
+             storyText.setPosition(gameWidth / 2, 150);
              storyText.setStyle({ wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true } });
         }
     });
@@ -95,6 +102,17 @@ function create() {
     graphics.fillCircle(30, 15, 20);
     graphics.fillCircle(50, 15, 20);
     graphics.generateTexture('cloud', 80, 50);
+    graphics.clear();
+
+    // Mountain (Distant Object)
+    graphics.fillStyle(0x444477, 1);
+    graphics.beginPath();
+    graphics.moveTo(0, 100);
+    graphics.lineTo(50, 0);
+    graphics.lineTo(100, 100);
+    graphics.closePath();
+    graphics.fillPath();
+    graphics.generateTexture('mountain', 100, 100);
     graphics.clear();
 
     // Ground
@@ -226,9 +244,23 @@ function create() {
     // Background
     this.cameras.main.setBackgroundColor('#87CEEB');
 
+    // Mountains (Distant Objects)
+    mountains = this.add.group();
+    for (let i = 0; i < 5; i++) {
+        let x = Phaser.Math.Between(0, gameWidth);
+        let y = gameHeight - Phaser.Math.Between(50, 200);
+        let mountain = mountains.create(x, y, 'mountain');
+        mountain.setOrigin(0.5, 1);
+        let scale = Phaser.Math.FloatBetween(2.0, 4.0);
+        mountain.setScale(scale);
+        mountain.setScrollFactor(0.1); // Move very slowly
+        mountain.setDepth(-10); // Behind everything
+        mountain.setTint(0x8888aa);
+    }
+
     // Clouds
     clouds = this.add.group();
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 100; i++) { // Increased clouds
         let x = Phaser.Math.Between(0, gameWidth);
         let y = Phaser.Math.Between(0, gameHeight * 0.9);
         let cloud = clouds.create(x, y, 'cloud');
@@ -250,6 +282,20 @@ function create() {
     bigHoleGenerated = false;
     jumps = 0;
     this.lastStoryMilestone = 0;
+    this.startTime = this.time.now; // Track start time for "Armor Zone"
+
+    // Coin Maker Upgrade
+    if (window.gameState.hasCoinMaker) {
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                window.gameState.coins++;
+                if (scoreText) scoreText.setText('Coins: ' + window.gameState.coins);
+                updateShopUI();
+            },
+            loop: true
+        });
+    }
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
@@ -390,6 +436,18 @@ function update() {
         }
     });
 
+    // Mountains Recycling
+    mountains.children.iterate((mtn) => {
+        // Since scrollFactor is 0.1, we need to calculate world position relative to camera carefully
+        // Or just let them be, but eventually they will go off screen if the world moves endlessly?
+        // With scrollFactor < 1, they move slower than camera.
+        // Eventually the camera will pass them.
+        // We can just respawn them ahead.
+        if (mtn.x < camX - 1000) { // arbitrary threshold
+             mtn.x = camX + gameWidth + Phaser.Math.Between(200, 800);
+        }
+    });
+
     // Jump Input (Keyboard)
     if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
         handleJump();
@@ -503,6 +561,17 @@ function spawnNextPlatform(scene) {
         width = Phaser.Math.Between(400, 800);
     }
 
+    // Armor Zone Logic: After 30 seconds, force a dangerous zone
+    // We'll create a platform completely covered in spikes occasionally if time > 30s
+    let isArmorZone = false;
+    if (scene.startTime && (scene.time.now - scene.startTime > 30000)) {
+        // 20% chance to spawn an Armor Zone segment
+        if (Phaser.Math.Between(0, 100) < 20) {
+             isArmorZone = true;
+             width = 600; // Fixed width for the zone
+        }
+    }
+
     // Big Hole Logic
     if (!bigHoleGenerated && nextPlatformX > 3000) {
         gap = 450;
@@ -513,20 +582,35 @@ function spawnNextPlatform(scene) {
     let startX = nextPlatformX + gap;
     createPlatform(scene, startX, y, width);
 
+    // Unreachable Platform (Decorative/Taunt)
+    if (Phaser.Math.Between(0, 100) < 10) { // 10% chance
+        let unreachY = y - Phaser.Math.Between(300, 400);
+        let unreachPlat = platforms.create(startX, unreachY, 'ground');
+        unreachPlat.displayWidth = 200;
+        unreachPlat.displayHeight = 32;
+        unreachPlat.refreshBody();
+        unreachPlat.setTint(0x555555); // Greyed out
+    }
+
     // Spawn Stars
     const numStars = Phaser.Math.Between(0, 3);
     const step = width / (numStars + 1);
     for(let i=1; i<=numStars; i++) {
-        let starY = y - 40;
-        // In tutorial, vary height to encourage jumping
-        if (nextPlatformX < TUTORIAL_LIMIT && Phaser.Math.Between(0, 1) === 1) {
-            starY = y - 120;
-        }
+        // "The coins should be a bit higher so we should get them more easily with a jump"
+        let starY = y - 150;
         stars.create(startX + (i*step), starY, 'star');
     }
 
-    // Spawn Spikes (After Double Jump, reduced density, not in tutorial)
-    if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
+    // Spawn Spikes
+    if (isArmorZone) {
+        // Dense spikes covering the platform
+        const spikeWidth = 32;
+        const numSpikes = Math.floor(width / spikeWidth);
+        for(let i=0; i<numSpikes; i++) {
+             spikes.create(startX + (i*spikeWidth) + 16, y - 32, 'spike');
+        }
+    } else if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
+        // Normal spike generation
         if (Phaser.Math.Between(0, 100) < 25) { // 25% chance per platform
             const numSpikes = 1;
             for(let i=0; i<numSpikes; i++) {
