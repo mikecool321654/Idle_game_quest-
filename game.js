@@ -121,13 +121,17 @@ function createUI(scene) {
     scoreText = scene.add.text(16, 16, 'Credits: ' + coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
     robotText = scene.add.text(16, 50, 'Robot MK-' + robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
 
-    let shopString = hasDoubleJump ? 'Double Jump\nACQUIRED' : 'Buy Double Jump\n(50 Credits)';
+    let shopString = hasDoubleJump ? 'Double Jump\nACQUIRED' : 'Buy Double Jump\n(50 Credits) [B]';
     let shopColor = hasDoubleJump ? '#0f0' : '#aaa';
 
     shopText = scene.add.text(gameWidth - 250, 16, shopString, { fontSize: '24px', fill: shopColor, align: 'right', fontFamily: 'Courier' })
         .setScrollFactor(0)
-        .setInteractive()
-        .on('pointerdown', () => buyDoubleJump());
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => buyDoubleJump())
+        .on('pointerover', () => shopText.setScale(1.1))
+        .on('pointerout', () => shopText.setScale(1.0));
+
+    scene.input.keyboard.on('keydown-B', () => buyDoubleJump());
 
     // Story Text
     let storyMsg = "System Online. Objective: Collect Credits.";
