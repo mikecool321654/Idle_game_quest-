@@ -21,6 +21,7 @@ const config = {
 
 let player;
 let platforms;
+let clouds;
 let stars;
 let spikes;
 let cursors;
@@ -59,50 +60,25 @@ function create() {
         gameWidth = gameSize.width;
         gameHeight = gameSize.height;
 
-        if (this.bg) {
-            this.bg.setPosition(gameWidth / 2, gameHeight / 2);
-            let scale = Math.max(gameWidth / 800, gameHeight / 600);
-            this.bg.setScale(scale);
-        }
 
         if (shopText) shopText.setPosition(gameWidth - 16, 16);
-        if (storyText) storyText.setPosition(gameWidth / 2, gameHeight - 40);
+        if (storyText) {
+             storyText.setPosition(gameWidth / 2, gameHeight - 40);
+             storyText.setStyle({ wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true } });
+        }
     });
 
     // --- Generate Textures ---
     const graphics = this.make.graphics();
 
-    // Background (Cyberpunk City)
-    graphics.fillStyle(0x050510, 1);
-    graphics.fillRect(0, 0, 800, 600);
-    // Stars
-    graphics.fillStyle(0xffffff, 0.5);
-    for(let i=0; i<50; i++) {
-        graphics.fillCircle(Math.random() * 800, Math.random() * 600, Math.random() * 2);
-    }
-    // Far Buildings
-    graphics.fillStyle(0x1a1a2e, 1);
-    for(let i=0; i<15; i++) {
-        let h = Phaser.Math.Between(100, 300);
-        let w = Phaser.Math.Between(30, 80);
-        let x = Phaser.Math.Between(0, 800);
-        graphics.fillRect(x, 600 - h, w, h);
-    }
-    // Near Buildings
-    graphics.fillStyle(0x0f0f1a, 1);
-    for(let i=0; i<10; i++) {
-        let h = Phaser.Math.Between(50, 200);
-        let w = Phaser.Math.Between(40, 100);
-        let x = Phaser.Math.Between(0, 800);
-        graphics.fillRect(x, 600 - h, w, h);
-        // Neon Lights
-        graphics.fillStyle(0x00ffcc, 0.8);
-        for(let j=0; j<3; j++) {
-            graphics.fillRect(x + Phaser.Math.Between(5, w-10), 600 - Phaser.Math.Between(10, h-10), 4, 4);
-        }
-        graphics.fillStyle(0x0f0f1a, 1);
-    }
-    graphics.generateTexture('background', 800, 600);
+    // Cloud
+    graphics.fillStyle(0xffffff, 0.8);
+    graphics.fillCircle(20, 25, 20);
+    graphics.fillCircle(40, 25, 20);
+    graphics.fillCircle(60, 25, 20);
+    graphics.fillCircle(30, 15, 20);
+    graphics.fillCircle(50, 15, 20);
+    graphics.generateTexture('cloud', 80, 50);
     graphics.clear();
 
     // Ground
@@ -166,6 +142,9 @@ function create() {
         } else if (frameType === 2) { // Run 2
              graphics.fillRect(offsetX + 10, 34, 5, 14); // Back leg down
              graphics.fillRect(offsetX + 22, 34, 5, 10); // Front leg up
+        } else if (frameType === 3) { // Jump
+             graphics.fillRect(offsetX + 8, 32, 5, 10); // Left leg bent
+             graphics.fillRect(offsetX + 20, 30, 5, 10); // Right leg bent
         }
     };
 
@@ -173,8 +152,9 @@ function create() {
     drawRobotFrame(32, 1);  // Left Up
     drawRobotFrame(64, 0);  // Stand
     drawRobotFrame(96, 2);  // Right Up
+    drawRobotFrame(128, 3); // Jump
 
-    graphics.generateTexture('dude_run', 128, 48);
+    graphics.generateTexture('dude_run', 160, 48);
     graphics.clear();
 
     graphics.destroy();
@@ -186,17 +166,23 @@ function create() {
     dudeTexture.add(1, 0, 32, 0, 32, 48);
     dudeTexture.add(2, 0, 64, 0, 32, 48);
     dudeTexture.add(3, 0, 96, 0, 32, 48);
+    dudeTexture.add(4, 0, 128, 0, 32, 48);
     // -------------------------
 
     // Background
-    // Replaced 'sky' with 'background' which is 800x600. We scale it to cover.
-    let bg = this.add.image(gameWidth / 2, gameHeight / 2, 'background').setScrollFactor(0);
-    // Scale logic will be handled in resize, but initial:
-    let scaleX = gameWidth / 800;
-    let scaleY = gameHeight / 600;
-    let scale = Math.max(scaleX, scaleY);
-    bg.setScale(scale).setScrollFactor(0);
-    this.bg = bg; // Store reference for resize
+    this.cameras.main.setBackgroundColor('#87CEEB');
+
+    // Clouds
+    clouds = this.add.group();
+    for (let i = 0; i < 15; i++) {
+        let x = Phaser.Math.Between(0, gameWidth);
+        let y = Phaser.Math.Between(0, gameHeight * 0.6);
+        let cloud = clouds.create(x, y, 'cloud');
+        let scale = Phaser.Math.FloatBetween(0.5, 1.5);
+        cloud.setScale(scale);
+        cloud.setScrollFactor(0.3 + (scale * 0.1)); // Larger clouds move faster (closer)
+        cloud.alpha = 0.8;
+    }
 
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
@@ -288,7 +274,8 @@ function createUI(scene) {
         fill: '#0f0',
         backgroundColor: '#00000088',
         padding: { x: 10, y: 5 },
-        fontFamily: 'Courier'
+        fontFamily: 'Courier',
+        wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true }
     })
     .setOrigin(0.5)
     .setScrollFactor(0);
@@ -309,10 +296,23 @@ function update() {
     // Auto run
     player.setVelocityX(250);
 
-    // Reset jumps when grounded
+    // Animation
     if (player.body.touching.down) {
-        jumps = 0;
+        player.anims.play('run', true);
+        jumps = 0; // Reset jumps when grounded
+    } else {
+        player.anims.stop();
+        player.setFrame(4); // Jump frame
     }
+
+    // Clouds Recycling
+    const camX = this.cameras.main.scrollX;
+    clouds.children.iterate((cloud) => {
+        if (cloud.x < camX - 400) {
+            cloud.x = camX + gameWidth + Phaser.Math.Between(100, 800);
+            cloud.y = Phaser.Math.Between(0, gameHeight * 0.6);
+        }
+    });
 
     // Jump Input (Keyboard)
     if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
@@ -449,8 +449,8 @@ function collectStar(player, star) {
 
 function handleShopAction() {
     if (!hasDoubleJump) {
-        if (coins >= 50) {
-            coins -= 50;
+        if (coins >= 20) {
+            coins -= 20;
             hasDoubleJump = true;
             scoreText.setText('Coins: ' + coins);
             updateShopUI();
@@ -470,8 +470,8 @@ function updateShopUI() {
     let color = '#aaa';
 
     if (!hasDoubleJump) {
-        text = 'Buy Double Jump\n(50 Coins) [B]';
-        color = (coins >= 50) ? '#ff0' : '#aaa';
+        text = 'Buy Double Jump\n(20 Coins) [B]';
+        color = (coins >= 20) ? '#ff0' : '#aaa';
     } else if (!hasArmor) {
         text = 'Buy Armor\n(100 Coins) [B]';
         color = (coins >= 100) ? '#ff0' : '#aaa';
