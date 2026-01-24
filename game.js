@@ -83,7 +83,11 @@ function create() {
         gameHeight = gameSize.height;
 
         // Update Camera Offset
-        this.cameras.main.setFollowOffset(-250, (gameHeight * 0.15));
+        // Re-establish follow with new offset
+        const camOffsetY = (gameHeight * 0.15);
+        if (player) {
+            this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
+        }
 
         if (scoreText) scoreText.setPosition(45, 16);
         if (robotText) robotText.setPosition(16, 60);
@@ -102,199 +106,217 @@ function create() {
     const graphics = this.make.graphics();
 
     // Cloud
-    graphics.fillStyle(0xffffff, 0.8);
-    graphics.fillCircle(20, 25, 20);
-    graphics.fillCircle(40, 25, 20);
-    graphics.fillCircle(60, 25, 20);
-    graphics.fillCircle(30, 15, 20);
-    graphics.fillCircle(50, 15, 20);
-    graphics.generateTexture('cloud', 80, 50);
-    graphics.clear();
+    if (!this.textures.exists('cloud')) {
+        graphics.fillStyle(0xffffff, 0.8);
+        graphics.fillCircle(20, 25, 20);
+        graphics.fillCircle(40, 25, 20);
+        graphics.fillCircle(60, 25, 20);
+        graphics.fillCircle(30, 15, 20);
+        graphics.fillCircle(50, 15, 20);
+        graphics.generateTexture('cloud', 80, 50);
+        graphics.clear();
+    }
 
     // Mountain (Distant Object)
-    graphics.fillStyle(0x444477, 1);
-    graphics.beginPath();
-    graphics.moveTo(0, 100);
-    graphics.lineTo(50, 0);
-    graphics.lineTo(100, 100);
-    graphics.closePath();
-    graphics.fillPath();
-    // Snow Cap
-    graphics.fillStyle(0xffffff, 1);
-    graphics.beginPath();
-    graphics.moveTo(50, 0);
-    graphics.lineTo(35, 30);
-    graphics.lineTo(65, 30);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('mountain', 100, 100);
-    graphics.clear();
+    if (!this.textures.exists('mountain')) {
+        graphics.fillStyle(0x444477, 1);
+        graphics.beginPath();
+        graphics.moveTo(0, 100);
+        graphics.lineTo(50, 0);
+        graphics.lineTo(100, 100);
+        graphics.closePath();
+        graphics.fillPath();
+        // Snow Cap
+        graphics.fillStyle(0xffffff, 1);
+        graphics.beginPath();
+        graphics.moveTo(50, 0);
+        graphics.lineTo(35, 30);
+        graphics.lineTo(65, 30);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.generateTexture('mountain', 100, 100);
+        graphics.clear();
+    }
 
     // Ground
-    graphics.fillStyle(0x66cc66, 1); // Grassy Green
-    graphics.fillRect(0, 0, 32, 32);
-    // Grass blades
-    graphics.fillStyle(0x44aa44, 1);
-    graphics.beginPath();
-    graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
-    graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
-    graphics.closePath();
-    graphics.fillPath();
-    // Dirt details
-    graphics.fillStyle(0x553311, 1);
-    graphics.fillCircle(16, 20, 2);
-    graphics.fillCircle(24, 28, 3);
-    graphics.generateTexture('ground', 32, 32);
-    graphics.clear();
+    if (!this.textures.exists('ground')) {
+        graphics.fillStyle(0x66cc66, 1); // Grassy Green
+        graphics.fillRect(0, 0, 32, 32);
+        // Grass blades
+        graphics.fillStyle(0x44aa44, 1);
+        graphics.beginPath();
+        graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
+        graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
+        graphics.closePath();
+        graphics.fillPath();
+        // Dirt details
+        graphics.fillStyle(0x553311, 1);
+        graphics.fillCircle(16, 20, 2);
+        graphics.fillCircle(24, 28, 3);
+        graphics.generateTexture('ground', 32, 32);
+        graphics.clear();
+    }
 
     // Spike
-    graphics.fillStyle(0xff0000, 1);
-    graphics.beginPath();
-    graphics.moveTo(0, 32);
-    graphics.lineTo(16, 0);
-    graphics.lineTo(32, 32);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('spike', 32, 32);
-    graphics.clear();
+    if (!this.textures.exists('spike')) {
+        graphics.fillStyle(0xff0000, 1);
+        graphics.beginPath();
+        graphics.moveTo(0, 32);
+        graphics.lineTo(16, 0);
+        graphics.lineTo(32, 32);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.generateTexture('spike', 32, 32);
+        graphics.clear();
+    }
 
     // Monster
-    graphics.fillStyle(0xcc0000, 1); // Dark Red
-    graphics.fillRect(0, 0, 32, 32);
-    // Eyes
-    graphics.fillStyle(0xffff00, 1); // Yellow eyes
-    graphics.fillCircle(8, 10, 4);
-    graphics.fillCircle(24, 10, 4);
-    graphics.fillStyle(0x000000, 1); // Pupils
-    graphics.fillCircle(8, 10, 1);
-    graphics.fillCircle(24, 10, 1);
-    // Teeth
-    graphics.fillStyle(0xffffff, 1);
-    graphics.beginPath();
-    graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
-    graphics.moveTo(12, 24); graphics.lineTo(16, 30); graphics.lineTo(20, 24);
-    graphics.moveTo(20, 24); graphics.lineTo(24, 30); graphics.lineTo(28, 24);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('monster', 32, 32);
-    graphics.clear();
+    if (!this.textures.exists('monster')) {
+        graphics.fillStyle(0xcc0000, 1); // Dark Red
+        graphics.fillRect(0, 0, 32, 32);
+        // Eyes
+        graphics.fillStyle(0xffff00, 1); // Yellow eyes
+        graphics.fillCircle(8, 10, 4);
+        graphics.fillCircle(24, 10, 4);
+        graphics.fillStyle(0x000000, 1); // Pupils
+        graphics.fillCircle(8, 10, 1);
+        graphics.fillCircle(24, 10, 1);
+        // Teeth
+        graphics.fillStyle(0xffffff, 1);
+        graphics.beginPath();
+        graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
+        graphics.moveTo(12, 24); graphics.lineTo(16, 30); graphics.lineTo(20, 24);
+        graphics.moveTo(20, 24); graphics.lineTo(24, 30); graphics.lineTo(28, 24);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.generateTexture('monster', 32, 32);
+        graphics.clear();
+    }
 
     // Star (Coin)
-    graphics.fillStyle(0xFFD700, 1); // Gold
-    graphics.fillCircle(12, 12, 10);
-    graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
-    graphics.strokeCircle(12, 12, 10);
-    graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
-    graphics.fillCircle(9, 9, 3);
-    // Extra Detail
-    graphics.fillStyle(0xFFFACD, 1);
-    graphics.fillCircle(12, 12, 5);
-    graphics.generateTexture('star', 24, 24);
-    graphics.clear();
+    if (!this.textures.exists('star')) {
+        graphics.fillStyle(0xFFD700, 1); // Gold
+        graphics.fillCircle(12, 12, 10);
+        graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
+        graphics.strokeCircle(12, 12, 10);
+        graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
+        graphics.fillCircle(9, 9, 3);
+        // Extra Detail
+        graphics.fillStyle(0xFFFACD, 1);
+        graphics.fillCircle(12, 12, 5);
+        graphics.generateTexture('star', 24, 24);
+        graphics.clear();
+    }
 
     // Gem (Objective)
-    graphics.fillStyle(0x00ffff, 1); // Cyan
-    graphics.beginPath();
-    graphics.moveTo(12, 0);
-    graphics.lineTo(24, 12);
-    graphics.lineTo(12, 24);
-    graphics.lineTo(0, 12);
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.generateTexture('gem', 24, 24);
-    graphics.clear();
+    if (!this.textures.exists('gem')) {
+        graphics.fillStyle(0x00ffff, 1); // Cyan
+        graphics.beginPath();
+        graphics.moveTo(12, 0);
+        graphics.lineTo(24, 12);
+        graphics.lineTo(12, 24);
+        graphics.lineTo(0, 12);
+        graphics.closePath();
+        graphics.fillPath();
+        graphics.generateTexture('gem', 24, 24);
+        graphics.clear();
+    }
 
     // Gear (Settings Icon)
-    graphics.fillStyle(0x888888, 1);
-    graphics.fillCircle(16, 16, 10);
-    graphics.lineStyle(4, 0x888888);
-    for (let i = 0; i < 8; i++) {
-        const angle = i * (Math.PI / 4);
-        const x = 16 + Math.cos(angle) * 14;
-        const y = 16 + Math.sin(angle) * 14;
-        graphics.moveTo(16, 16);
-        graphics.lineTo(x, y);
+    if (!this.textures.exists('gear')) {
+        graphics.fillStyle(0x888888, 1);
+        graphics.fillCircle(16, 16, 10);
+        graphics.lineStyle(4, 0x888888);
+        for (let i = 0; i < 8; i++) {
+            const angle = i * (Math.PI / 4);
+            const x = 16 + Math.cos(angle) * 14;
+            const y = 16 + Math.sin(angle) * 14;
+            graphics.moveTo(16, 16);
+            graphics.lineTo(x, y);
+        }
+        graphics.strokePath();
+        graphics.fillStyle(0x000000, 1); // Hole
+        graphics.fillCircle(16, 16, 4);
+        graphics.generateTexture('gear', 32, 32);
+        graphics.clear();
     }
-    graphics.strokePath();
-    graphics.fillStyle(0x000000, 1); // Hole
-    graphics.fillCircle(16, 16, 4);
-    graphics.generateTexture('gear', 32, 32);
-    graphics.clear();
 
     // Dude (Robot) Sprite Sheet
-    // 32x48
-    const drawRobotFrame = (offsetX, frameType) => {
-        const cBody = 0xffffff;
-        const cDark = 0x333333;
-        const cEye = 0x00ffff; // Cyan eye
-        const cAntenna = 0xff0000;
-        const cLimbs = 0x555555;
+    if (!this.textures.exists('dude_run')) {
+        // 32x48
+        const drawRobotFrame = (offsetX, frameType) => {
+            const cBody = 0xffffff;
+            const cDark = 0x333333;
+            const cEye = 0x00ffff; // Cyan eye
+            const cAntenna = 0xff0000;
+            const cLimbs = 0x555555;
 
-        // Limbs function
-        const drawLimb = (x, y, w, h) => {
-             graphics.fillStyle(cLimbs, 1);
-             graphics.fillRoundedRect(offsetX + x, y, w, h, 2);
+            // Limbs function
+            const drawLimb = (x, y, w, h) => {
+                graphics.fillStyle(cLimbs, 1);
+                graphics.fillRoundedRect(offsetX + x, y, w, h, 2);
+            };
+
+            // Legs (Behind)
+            if (frameType === 1) drawLimb(8, 34, 5, 10); // Back leg up
+            else drawLimb(10, 34, 5, 14); // Back leg down
+
+            // Body
+            graphics.fillStyle(cBody, 1);
+            graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8); // Round body
+
+            // Head
+            graphics.fillStyle(cBody, 1);
+            graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10); // Round head
+
+            // Face / Visor
+            graphics.fillStyle(cDark, 1);
+            graphics.fillRoundedRect(offsetX + 6, 6, 20, 12, 4);
+
+            // Eyes
+            graphics.fillStyle(cEye, 1);
+            graphics.fillCircle(offsetX + 12, 12, 3);
+            graphics.fillCircle(offsetX + 20, 12, 3);
+
+            // Antenna
+            graphics.lineStyle(2, cDark);
+            graphics.lineBetween(offsetX + 16, 0, offsetX + 16, -5);
+            graphics.fillStyle(cAntenna, 1);
+            graphics.fillCircle(offsetX + 16, -5, 3);
+
+            // Arms (Side/Front)
+            // Simple arm logic
+            drawLimb(12, 20, 4, 12);
+
+            // Legs (Front)
+            if (frameType === 2) drawLimb(22, 34, 5, 10); // Front leg up
+            else if (frameType === 3) { // Jump
+                drawLimb(8, 32, 5, 10);
+                drawLimb(20, 30, 5, 10);
+            }
+            else drawLimb(18, 34, 5, 14); // Front leg down
         };
 
-        // Legs (Behind)
-        if (frameType === 1) drawLimb(8, 34, 5, 10); // Back leg up
-        else drawLimb(10, 34, 5, 14); // Back leg down
+        drawRobotFrame(0, 0);   // Stand
+        drawRobotFrame(32, 1);  // Left Up
+        drawRobotFrame(64, 0);  // Stand
+        drawRobotFrame(96, 2);  // Right Up
+        drawRobotFrame(128, 3); // Jump
 
-        // Body
-        graphics.fillStyle(cBody, 1);
-        graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8); // Round body
+        graphics.generateTexture('dude_run', 160, 48);
+        graphics.clear();
 
-        // Head
-        graphics.fillStyle(cBody, 1);
-        graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10); // Round head
-
-        // Face / Visor
-        graphics.fillStyle(cDark, 1);
-        graphics.fillRoundedRect(offsetX + 6, 6, 20, 12, 4);
-
-        // Eyes
-        graphics.fillStyle(cEye, 1);
-        graphics.fillCircle(offsetX + 12, 12, 3);
-        graphics.fillCircle(offsetX + 20, 12, 3);
-
-        // Antenna
-        graphics.lineStyle(2, cDark);
-        graphics.lineBetween(offsetX + 16, 0, offsetX + 16, -5);
-        graphics.fillStyle(cAntenna, 1);
-        graphics.fillCircle(offsetX + 16, -5, 3);
-
-        // Arms (Side/Front)
-        // Simple arm logic
-        drawLimb(12, 20, 4, 12);
-
-        // Legs (Front)
-        if (frameType === 2) drawLimb(22, 34, 5, 10); // Front leg up
-        else if (frameType === 3) { // Jump
-             drawLimb(8, 32, 5, 10);
-             drawLimb(20, 30, 5, 10);
-        }
-        else drawLimb(18, 34, 5, 14); // Front leg down
-    };
-
-    drawRobotFrame(0, 0);   // Stand
-    drawRobotFrame(32, 1);  // Left Up
-    drawRobotFrame(64, 0);  // Stand
-    drawRobotFrame(96, 2);  // Right Up
-    drawRobotFrame(128, 3); // Jump
-
-    graphics.generateTexture('dude_run', 160, 48);
-    graphics.clear();
+        // Add frames to the generated texture to act as a spritesheet
+        const dudeTexture = this.textures.get('dude_run');
+        // add(name, sourceIndex, x, y, width, height)
+        dudeTexture.add(0, 0, 0, 0, 32, 48);
+        dudeTexture.add(1, 0, 32, 0, 32, 48);
+        dudeTexture.add(2, 0, 64, 0, 32, 48);
+        dudeTexture.add(3, 0, 96, 0, 32, 48);
+        dudeTexture.add(4, 0, 128, 0, 32, 48);
+    }
 
     graphics.destroy();
-
-    // Add frames to the generated texture to act as a spritesheet
-    const dudeTexture = this.textures.get('dude_run');
-    // add(name, sourceIndex, x, y, width, height)
-    dudeTexture.add(0, 0, 0, 0, 32, 48);
-    dudeTexture.add(1, 0, 32, 0, 32, 48);
-    dudeTexture.add(2, 0, 64, 0, 32, 48);
-    dudeTexture.add(3, 0, 96, 0, 32, 48);
-    dudeTexture.add(4, 0, 128, 0, 32, 48);
     // -------------------------
 
     // Background
