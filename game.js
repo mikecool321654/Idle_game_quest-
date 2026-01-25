@@ -484,7 +484,8 @@ function create() {
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
     for(let k=0; k<4; k++) {
-        stars.create(400 + k*60, lastPlatformY - 50, 'star');
+        let star = stars.get(400 + k*60, lastPlatformY - 50, 'star');
+        if (star) star.enableBody(true, 400 + k*60, lastPlatformY - 50, true, true);
     }
     nextPlatformX = 1000;
 
@@ -697,8 +698,8 @@ function update() {
 
     // Clean up Lasers
     lasers.children.iterate((laser) => {
-        if (laser && laser.x > camX + gameWidth + 100) {
-            laser.destroy();
+        if (laser.active && laser.x > camX + gameWidth + 100) {
+            laser.disableBody(true, true);
         }
     });
 
@@ -846,18 +847,20 @@ function cleanup(scene) {
     const sChildren = stars.getChildren();
     for (let i = sChildren.length - 1; i >= 0; i--) {
         const child = sChildren[i];
-        if (child.x < cleanupThreshold) child.destroy();
+        if (child.active && child.x < cleanupThreshold) child.disableBody(true, true);
     }
     const kChildren = spikes.getChildren();
     for (let i = kChildren.length - 1; i >= 0; i--) {
         const child = kChildren[i];
-        if (child.x < cleanupThreshold) child.destroy();
+        if (child.active && child.x < cleanupThreshold) child.disableBody(true, true);
     }
     const mChildren = monsters.getChildren();
     for (let i = mChildren.length - 1; i >= 0; i--) {
         const child = mChildren[i];
-        if (child.x < cleanupThreshold) child.destroy();
-        else if (child.y > gameHeight + 100) child.destroy();
+        if (child.active) {
+            if (child.x < cleanupThreshold) child.disableBody(true, true);
+            else if (child.y > gameHeight + 100) child.disableBody(true, true);
+        }
     }
 }
 
@@ -892,21 +895,26 @@ function handleSword(scene) {
         const dx = monster.x - player.x;
         const dy = Math.abs(monster.y - player.y);
         if (dx > 0 && dx < 80 && dy < 50) {
-             monster.destroy();
+             monster.disableBody(true, true);
         }
     });
 }
 
 function handleLaser(scene) {
-    const laser = lasers.create(player.x + 20, player.y, 'laser');
-    laser.setVelocityX(600);
-    laser.body.allowGravity = false;
-    showStoryMessage(scene, "Command Center: Laser discharged.");
+    const laser = lasers.get(player.x + 20, player.y, 'laser');
+    if (laser) {
+        laser.setActive(true);
+        laser.setVisible(true);
+        laser.enableBody(true, player.x + 20, player.y, true, true);
+        laser.setVelocityX(600);
+        laser.body.allowGravity = false;
+        showStoryMessage(scene, "Command Center: Laser discharged.");
+    }
 }
 
 function laserHitMonster(laser, monster) {
-    laser.destroy();
-    monster.destroy();
+    laser.disableBody(true, true);
+    monster.disableBody(true, true);
     showStoryMessage(laser.scene, "Command Center: Target neutralized.");
 }
 
@@ -953,7 +961,8 @@ function spawnNextPlatform(scene) {
         let highY = y - 350;
         createPlatform(scene, startX, highY, Phaser.Math.Between(200, 400), null);
         for(let k=0; k<3; k++) {
-             stars.create(startX + (k*50), highY - 50, 'star');
+             let star = stars.get(startX + (k*50), highY - 50, 'star');
+             if (star) star.enableBody(true, startX + (k*50), highY - 50, true, true);
         }
     }
     if (Phaser.Math.Between(0, 100) < 10) {
@@ -964,27 +973,31 @@ function spawnNextPlatform(scene) {
         unreachPlat.refreshBody();
         unreachPlat.setTint(0x555555);
         for(let k=0; k<5; k++) {
-             stars.create(startX - 80 + (k*40), unreachY - 50, 'star');
+             let star = stars.get(startX - 80 + (k*40), unreachY - 50, 'star');
+             if (star) star.enableBody(true, startX - 80 + (k*40), unreachY - 50, true, true);
         }
     }
     const numStars = Phaser.Math.Between(0, 3);
     const step = width / (numStars + 1);
     for(let i=1; i<=numStars; i++) {
         let starY = y - 150;
-        stars.create(startX + (i*step), starY, 'star');
+        let star = stars.get(startX + (i*step), starY, 'star');
+        if (star) star.enableBody(true, startX + (i*step), starY, true, true);
     }
     if (isArmorZone) {
         const spikeWidth = 32;
         const numSpikes = Math.floor(width / spikeWidth);
         for(let i=0; i<numSpikes; i++) {
-             spikes.create(startX + (i*spikeWidth) + 16, y - 32, 'spike');
+             let spike = spikes.get(startX + (i*spikeWidth) + 16, y - 32, 'spike');
+             if (spike) spike.enableBody(true, startX + (i*spikeWidth) + 16, y - 32, true, true);
         }
     } else if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
         if (Phaser.Math.Between(0, 100) < 25) {
             const numSpikes = 1;
             for(let i=0; i<numSpikes; i++) {
                  let sx = startX + Phaser.Math.Between(50, width - 50);
-                 spikes.create(sx, y - 32, 'spike');
+                 let spike = spikes.get(sx, y - 32, 'spike');
+                 if (spike) spike.enableBody(true, sx, y - 32, true, true);
             }
         }
     }
@@ -993,10 +1006,15 @@ function spawnNextPlatform(scene) {
 
     if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < spawnChance) {
          let mx = startX + Phaser.Math.Between(50, width - 50);
-         let monster = monsters.create(mx, y - 50, 'monster');
-         monster.setBounce(1);
-         monster.setCollideWorldBounds(false);
-         monster.setVelocityX(Phaser.Math.Between(-40, 40));
+         let monster = monsters.get(mx, y - 50, 'monster');
+         if (monster) {
+             monster.setActive(true);
+             monster.setVisible(true);
+             monster.enableBody(true, mx, y - 50, true, true);
+             monster.setBounce(1);
+             monster.setCollideWorldBounds(false);
+             monster.setVelocityX(Phaser.Math.Between(-40, 40));
+         }
     }
     if (!window.gameState.hasGem && nextPlatformX > 15000 && gemGroup.getLength() === 0) {
          gemGroup.create(startX + width / 2, y - 60, 'gem');
