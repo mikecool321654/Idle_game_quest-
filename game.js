@@ -133,7 +133,7 @@ window.game = game;
 
 function preload() {
     // Load player spritesheet raw image
-    this.load.image('player_raw', 'player_spritesheet.jpg');
+    this.load.image('player_raw', 'player_spritesheet.png');
 }
 
 function create() {
@@ -154,8 +154,9 @@ function create() {
         // Update Camera Offset
         // Re-establish follow with new offset
         const camOffsetY = (gameHeight * 0.15);
+        const camOffsetX = Math.max(-250, 100 - gameWidth / 2);
         if (player) {
-            this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
+            this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
         }
 
         if (scoreText) scoreText.setPosition(45, 16);
@@ -323,20 +324,20 @@ function create() {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-            // Remove white background
-            if (r > 240 && g > 240 && b > 240) {
+            // Remove blue background (approx 16, 66, 122)
+            if (Math.abs(r - 16) < 60 && Math.abs(g - 66) < 60 && Math.abs(b - 122) < 60) {
                 data[i + 3] = 0;
             }
         }
         ctx.putImageData(imageData, 0, 0);
         canvas.refresh();
 
-        // Add frames (3 cols, 2 rows) - 1024x1024 total, ~341x512 per frame
-        const fW = 341;
-        const fH = 512;
+        // Add frames (Assume 6 cols, 5 rows)
+        const fW = Math.floor(raw.width / 6);
+        const fH = Math.floor(raw.height / 5);
         for (let i = 0; i < 6; i++) {
-            const x = (i % 3) * fW;
-            const y = Math.floor(i / 3) * fH;
+            const x = (i % 6) * fW;
+            const y = Math.floor(i / 6) * fH;
             canvas.add(i, 0, x, y, fW, fH);
         }
     }
@@ -478,7 +479,8 @@ function create() {
 
     // Camera
     const camOffsetY = (gameHeight * 0.15);
-    this.cameras.main.startFollow(player, true, 0.08, 0.08, -250, camOffsetY);
+    const camOffsetX = Math.max(-250, 100 - gameWidth / 2);
+    this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
     // Input
