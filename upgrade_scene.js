@@ -213,6 +213,8 @@ class UpgradeScene extends Phaser.Scene {
                 window.gameState[node.var] = true;
             }
 
+            if (window.saveGame) window.saveGame();
+
             // Refresh
             this.scene.restart();
         }

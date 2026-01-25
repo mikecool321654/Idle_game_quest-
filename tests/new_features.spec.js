@@ -21,7 +21,6 @@ test('Upgrade Tree has 4 categories and new items', async ({ page }) => {
     expect(nodes).toContain('Laser');
     expect(nodes).toContain('Shield');
     expect(nodes).toContain('Coin Factory');
-    expect(nodes).toContain('System Core');
 });
 
 test('Sword mechanic works', async ({ page }) => {

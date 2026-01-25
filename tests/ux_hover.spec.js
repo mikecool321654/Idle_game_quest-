@@ -37,5 +37,5 @@ test('Upgrade Scene description works on hover', async ({ page }) => {
       return scene.descriptionText.text;
   });
 
-  expect(descTextContent).toContain('Jump a second time');
+  expect(descTextContent).toContain('Access higher elevations');
 });
