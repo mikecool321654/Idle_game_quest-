@@ -132,7 +132,8 @@ const game = new Phaser.Game(config);
 window.game = game;
 
 function preload() {
-    // Assets are generated in create() to avoid external dependency issues
+    // Load player spritesheet raw image
+    this.load.image('player_raw', 'player_spritesheet.jpg');
 }
 
 function create() {
@@ -310,78 +311,34 @@ function create() {
     }
 
     // Dude (Robot) Sprite Sheet
-    if (!this.textures.exists('dude_run')) {
-        // 32x48
-        const drawRobotFrame = (offsetX, frameType) => {
-            const cBody = 0xffffff;
-            const cDark = 0x333333;
-            const cEye = 0x00ffff; // Cyan eye
-            const cAntenna = 0xff0000;
-            const cLimbs = 0x555555;
+    if (!this.textures.exists('dude_run') && this.textures.exists('player_raw')) {
+        const raw = this.textures.get('player_raw').getSourceImage();
+        const canvas = this.textures.createCanvas('dude_run', raw.width, raw.height);
+        const ctx = canvas.context;
+        ctx.drawImage(raw, 0, 0);
 
-            // Limbs function
-            const drawLimb = (x, y, w, h) => {
-                graphics.fillStyle(cLimbs, 1);
-                graphics.fillRoundedRect(offsetX + x, y, w, h, 2);
-            };
-
-            // Legs (Behind)
-            if (frameType === 1) drawLimb(8, 34, 5, 10); // Back leg up
-            else drawLimb(10, 34, 5, 14); // Back leg down
-
-            // Body
-            graphics.fillStyle(cBody, 1);
-            graphics.fillRoundedRect(offsetX + 4, 16, 24, 20, 8); // Round body
-
-            // Head
-            graphics.fillStyle(cBody, 1);
-            graphics.fillRoundedRect(offsetX + 2, 0, 28, 24, 10); // Round head
-
-            // Face / Visor
-            graphics.fillStyle(cDark, 1);
-            graphics.fillRoundedRect(offsetX + 6, 6, 20, 12, 4);
-
-            // Eyes
-            graphics.fillStyle(cEye, 1);
-            graphics.fillCircle(offsetX + 12, 12, 3);
-            graphics.fillCircle(offsetX + 20, 12, 3);
-
-            // Antenna
-            graphics.lineStyle(2, cDark);
-            graphics.lineBetween(offsetX + 16, 0, offsetX + 16, -5);
-            graphics.fillStyle(cAntenna, 1);
-            graphics.fillCircle(offsetX + 16, -5, 3);
-
-            // Arms (Side/Front)
-            // Simple arm logic
-            drawLimb(12, 20, 4, 12);
-
-            // Legs (Front)
-            if (frameType === 2) drawLimb(22, 34, 5, 10); // Front leg up
-            else if (frameType === 3) { // Jump
-                drawLimb(8, 32, 5, 10);
-                drawLimb(20, 30, 5, 10);
+        const imageData = ctx.getImageData(0, 0, raw.width, raw.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            // Remove white background
+            if (r > 240 && g > 240 && b > 240) {
+                data[i + 3] = 0;
             }
-            else drawLimb(18, 34, 5, 14); // Front leg down
-        };
+        }
+        ctx.putImageData(imageData, 0, 0);
+        canvas.refresh();
 
-        drawRobotFrame(0, 0);   // Stand
-        drawRobotFrame(32, 1);  // Left Up
-        drawRobotFrame(64, 0);  // Stand
-        drawRobotFrame(96, 2);  // Right Up
-        drawRobotFrame(128, 3); // Jump
-
-        graphics.generateTexture('dude_run', 160, 48);
-        graphics.clear();
-
-        // Add frames to the generated texture to act as a spritesheet
-        const dudeTexture = this.textures.get('dude_run');
-        // add(name, sourceIndex, x, y, width, height)
-        dudeTexture.add(0, 0, 0, 0, 32, 48);
-        dudeTexture.add(1, 0, 32, 0, 32, 48);
-        dudeTexture.add(2, 0, 64, 0, 32, 48);
-        dudeTexture.add(3, 0, 96, 0, 32, 48);
-        dudeTexture.add(4, 0, 128, 0, 32, 48);
+        // Add frames (3 cols, 2 rows) - 1024x1024 total, ~341x512 per frame
+        const fW = 341;
+        const fH = 512;
+        for (let i = 0; i < 6; i++) {
+            const x = (i % 3) * fW;
+            const y = Math.floor(i / 3) * fH;
+            canvas.add(i, 0, x, y, fW, fH);
+        }
     }
 
     // Drone
@@ -491,6 +448,7 @@ function create() {
 
     // Player
     player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
+    player.setScale(0.1); // Scale down the large spritesheet
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
 
@@ -502,7 +460,7 @@ function create() {
     if (!this.anims.exists('run')) {
         this.anims.create({
             key: 'run',
-            frames: this.anims.generateFrameNumbers('dude_run', { start: 0, end: 3 }),
+            frames: this.anims.generateFrameNumbers('dude_run', { start: 0, end: 5 }),
             frameRate: 10,
             repeat: -1
         });
@@ -683,7 +641,7 @@ function update() {
         jumps = 0;
     } else {
         player.anims.stop();
-        player.setFrame(4);
+        player.setFrame(2);
     }
 
     const camX = this.cameras.main.scrollX;
