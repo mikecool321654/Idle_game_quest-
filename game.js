@@ -134,6 +134,7 @@ window.game = game;
 function preload() {
     // Load player spritesheet raw image
     this.load.image('player_raw', 'player_spritesheet.png');
+    this.load.image('bg_layer', 'background.png');
 }
 
 function create() {
@@ -369,6 +370,27 @@ function create() {
     this.background.setDepth(-100);
     this.background.setScale(bgScale);
 
+    // Clouds
+    clouds = this.add.group();
+    for(let i=0; i<15; i++) {
+        let x = Phaser.Math.Between(0, gameWidth);
+        let y = Phaser.Math.Between(0, gameHeight * 0.6);
+        let cloud = clouds.create(x, y, 'cloud');
+        cloud.setAlpha(0.8);
+        cloud.setScrollFactor(0.1 + Math.random() * 0.1);
+        cloud.setScale(0.5 + Math.random() * 0.5);
+    }
+
+    // Mountains
+    mountains = this.add.group();
+    for(let i=0; i<10; i++) {
+        let x = Phaser.Math.Between(0, gameWidth);
+        let y = gameHeight - Phaser.Math.Between(50, 200);
+        let mountain = mountains.create(x, y, 'mountain');
+        mountain.setScrollFactor(0.2);
+        mountain.setDepth(-50);
+    }
+
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
@@ -434,7 +456,7 @@ function create() {
 
     // Player
     player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
-    player.setScale(0.1); // Scale down the large spritesheet
+    player.setScale(0.25); // Scale down the large spritesheet
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
 
@@ -493,6 +515,7 @@ function create() {
     // Expose for debugging/testing
     this.monsters = monsters;
     this.player = player;
+    this.clouds = clouds;
 
     // Auto-save every 10 seconds
     this.time.addEvent({
