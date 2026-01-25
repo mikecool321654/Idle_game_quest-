@@ -12,6 +12,9 @@ const config = {
             debug: false
         }
     },
+    render: {
+        roundPixels: true
+    },
     scene: {
         preload: preload,
         create: create,
@@ -161,7 +164,7 @@ function create() {
         // Update Camera Offset
         // Re-establish follow with new offset
         const camOffsetY = (gameHeight * 0.15);
-        const camOffsetX = Math.max(-250, 100 - gameWidth / 2);
+        const camOffsetX = gameWidth * 0.2;
         if (player) {
             this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
         }
@@ -331,8 +334,8 @@ function create() {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-            // Remove blue background (approx 16, 66, 122)
-            if (Math.abs(r - 16) < 60 && Math.abs(g - 66) < 60 && Math.abs(b - 122) < 60) {
+            // Remove blue background (approx 16, 66, 122) OR white background
+            if ((Math.abs(r - 16) < 60 && Math.abs(g - 66) < 60 && Math.abs(b - 122) < 60) || (r > 200 && g > 200 && b > 200)) {
                 data[i + 3] = 0;
             }
         }
@@ -456,7 +459,7 @@ function create() {
 
     // Player
     player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
-    player.setScale(0.25); // Scale down the large spritesheet
+    player.setScale(0.4); // Scale down the large spritesheet
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
 
@@ -486,7 +489,7 @@ function create() {
 
     // Camera
     const camOffsetY = (gameHeight * 0.15);
-    const camOffsetX = Math.max(-250, 100 - gameWidth / 2);
+    const camOffsetX = gameWidth * 0.2;
     this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
     this.cameras.main.setDeadzone(100, 100);
 
