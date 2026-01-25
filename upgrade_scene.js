@@ -54,7 +54,13 @@ class UpgradeScene extends Phaser.Scene {
 
             // Coin Making (South)
             { id: 'coinmaker', name: 'Coin Maker', cost: 40, x: 0, y: 150, parent: null, var: 'hasCoinMaker', description: 'Command Center: Automated mining algorithm. Generates 1 coin/sec.' },
-            { id: 'coinfactory', name: 'Coin Factory', cost: 100, x: 0, y: 250, parent: 'coinmaker', var: 'coinMakerLevel', description: 'Command Center: Optimization protocols. Increases generation to 2 coins/sec.' }
+            { id: 'coinfactory', name: 'Coin Factory', cost: 100, x: 0, y: 250, parent: 'coinmaker', var: 'coinMakerLevel', description: 'Command Center: Optimization protocols. Increases generation to 2 coins/sec.' },
+
+            // NEW IDLE UPGRADES
+            { id: 'autojump', name: 'Auto-Pilot', cost: 500, x: 0, y: -500, parent: 'jetpack', var: 'hasAutoJump', description: 'AI Navigation. Jumps automatically to avoid falling.' },
+            { id: 'magnet', name: 'Magnet', cost: 200, x: 0, y: 350, parent: 'coinfactory', var: 'hasMagnet', description: 'Gravitic Field. Attracts stars and gems automatically.' },
+            { id: 'lure', name: 'Monster Lure', cost: 150, x: 0, y: 450, parent: 'magnet', var: 'spawnRateLevel', description: 'Increases enemy spawn rate. More enemies = more loot.' },
+            { id: 'autoattack', name: 'Auto-Turret', cost: 300, x: 450, y: 0, parent: 'laser', var: 'hasAutoAttack', description: 'Automated defense system. Fires at enemies in range.' }
         ];
 
         // Description Text
@@ -141,6 +147,11 @@ class UpgradeScene extends Phaser.Scene {
                 else isOwned = false;
             }
 
+            if (node.var === 'spawnRateLevel') {
+                if (window.gameState.spawnRateLevel >= 1) isOwned = true;
+                else isOwned = false;
+            }
+
             if (isOwned) {
                 state = 'owned';
             } else {
@@ -209,6 +220,8 @@ class UpgradeScene extends Phaser.Scene {
 
             if (node.var === 'coinMakerLevel') {
                 window.gameState.coinMakerLevel = 2; // Set level 2
+            } else if (node.var === 'spawnRateLevel') {
+                window.gameState.spawnRateLevel = 1; // Set level 1 (Upgrade logic can be expanded later)
             } else {
                 window.gameState[node.var] = true;
             }

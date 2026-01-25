@@ -48,6 +48,11 @@ window.gameState = window.gameState || {
     hasCoinMaker: false,
     coinMakerLevel: 1, // New (1 = default, 2 = factory)
     hasGem: false,
+    maxDistance: 0,
+    hasAutoJump: false,
+    hasMagnet: false,
+    hasAutoAttack: false,
+    spawnRateLevel: 0,
     lastDeathReason: ''
 };
 
@@ -83,10 +88,14 @@ function loadGame() {
             if (diffSeconds > 1) {
                 let rate = 0;
                 if (window.gameState.hasCoinMaker) {
-                    rate = 1;
+                    let base = 1;
                     if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
-                        rate = 2;
+                        base = 2;
                     }
+                    const dist = window.gameState.maxDistance || 0;
+                    // Exploration Bonus: +100% per 2000 distance
+                    const multiplier = 1 + (dist / 2000);
+                    rate = base * multiplier;
                 }
 
                 if (rate > 0) {
@@ -375,6 +384,16 @@ function create() {
         dudeTexture.add(4, 0, 128, 0, 32, 48);
     }
 
+    // Drone
+    if (!this.textures.exists('drone')) {
+        graphics.fillStyle(0x888888, 1);
+        graphics.fillCircle(10, 10, 10);
+        graphics.fillStyle(0x00ffff, 1); // Cyan eye
+        graphics.fillCircle(10, 10, 4);
+        graphics.generateTexture('drone', 20, 20);
+        graphics.clear();
+    }
+
     graphics.destroy();
     // -------------------------
 
@@ -433,13 +452,34 @@ function create() {
         this.time.addEvent({
             delay: delay,
             callback: () => {
-                window.gameState.coins++;
+                // Idle Income with Exploration Bonus
+                let amount = 1;
+                const dist = window.gameState.maxDistance || 0;
+                const multiplier = 1 + (dist / 2000);
+                amount = Math.floor(amount * multiplier);
+
+                window.gameState.coins += Math.max(1, amount);
                 if (scoreText) scoreText.setText(window.gameState.coins);
                 updateShopUI();
             },
             loop: true
         });
     }
+
+    // Supply Drop (Periodic Reward)
+    this.time.addEvent({
+        delay: 120000, // 2 minutes
+        callback: () => {
+             const dist = window.gameState.maxDistance || 0;
+             const bonus = 1 + (dist / 2000);
+             const reward = Math.floor(50 * bonus);
+             window.gameState.coins += reward;
+             if (scoreText) scoreText.setText(window.gameState.coins);
+             showStoryMessage(this, "Command Center: Supply Drop received. +" + reward + " coins.");
+             updateShopUI();
+        },
+        loop: true
+    });
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
@@ -452,6 +492,10 @@ function create() {
     player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
     player.setBounce(0.0);
     player.setCollideWorldBounds(false);
+
+    // Drone
+    this.drone = this.add.sprite(player.x, player.y - 50, 'drone');
+    this.drone.setVisible(false);
 
     // Animations
     if (!this.anims.exists('run')) {
@@ -708,6 +752,86 @@ function update() {
         minimapGem.setPosition(MAP_WIDTH - 5, 10);
     }
 
+    // --- IDLE MECHANICS ---
+
+    // Exploration Tracking
+    window.gameState.maxDistance = Math.max(window.gameState.maxDistance || 0, Math.floor(player.x));
+
+    // Drone Visual
+    if (window.gameState.hasCoinMaker) {
+         if (this.drone && !this.drone.visible) this.drone.setVisible(true);
+         if (this.drone) {
+             this.drone.x = Phaser.Math.Interpolation.Linear([this.drone.x, player.x - 30], 0.1);
+             this.drone.y = Phaser.Math.Interpolation.Linear([this.drone.y, player.y - 50], 0.1);
+         }
+    }
+
+    // Magnet
+    if (window.gameState.hasMagnet) {
+        const magnetRange = 300;
+        stars.children.iterate((star) => {
+            if (star.active && Phaser.Math.Distance.Between(player.x, player.y, star.x, star.y) < magnetRange) {
+                const angle = Phaser.Math.Angle.Between(star.x, star.y, player.x, player.y);
+                const speed = 10;
+                star.x += Math.cos(angle) * speed;
+                star.y += Math.sin(angle) * speed;
+                star.refreshBody();
+            }
+        });
+        gemGroup.children.iterate((gem) => {
+             if (gem.active && Phaser.Math.Distance.Between(player.x, player.y, gem.x, gem.y) < magnetRange) {
+                const angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
+                const speed = 10;
+                gem.x += Math.cos(angle) * speed;
+                gem.y += Math.sin(angle) * speed;
+                gem.refreshBody();
+            }
+        });
+    }
+
+    // Auto-Jump
+    if (window.gameState.hasAutoJump && player.body.touching.down) {
+        const checkX = player.x + 100;
+        const checkY = player.y + 48;
+        let groundFound = false;
+        platforms.children.iterate((plat) => {
+            if (Math.abs(plat.x - checkX) < (plat.displayWidth / 2 + 10) && Math.abs(plat.y - checkY) < 50) {
+                groundFound = true;
+            }
+        });
+        if (!groundFound) {
+            handleJump();
+        }
+    }
+
+    // Auto-Attack
+    if (window.gameState.hasAutoAttack) {
+        const now = this.time.now;
+        if (!this.lastAutoAttackTime || now - this.lastAutoAttackTime > 1000) {
+            let target = null;
+            let minDist = 400;
+            monsters.children.iterate((monster) => {
+                if (monster.active) {
+                    const d = Phaser.Math.Distance.Between(player.x, player.y, monster.x, monster.y);
+                    if (d < minDist && monster.x > player.x) {
+                        minDist = d;
+                        target = monster;
+                    }
+                }
+            });
+
+            if (target) {
+                if (window.gameState.hasLaser) {
+                    handleLaser(this);
+                    this.lastAutoAttackTime = now;
+                } else if (window.gameState.hasSword && minDist < 100) {
+                    handleSword(this);
+                    this.lastAutoAttackTime = now;
+                }
+            }
+        }
+    }
+
     cleanup(this);
 }
 
@@ -864,7 +988,10 @@ function spawnNextPlatform(scene) {
             }
         }
     }
-    if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < 30) {
+    let spawnChance = 30;
+    if (window.gameState.spawnRateLevel > 0) spawnChance += (window.gameState.spawnRateLevel * 20);
+
+    if (nextPlatformX > 4000 && Phaser.Math.Between(0, 100) < spawnChance) {
          let mx = startX + Phaser.Math.Between(50, width - 50);
          let monster = monsters.create(mx, y - 50, 'monster');
          monster.setBounce(1);
