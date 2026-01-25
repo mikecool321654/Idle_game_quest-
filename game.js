@@ -51,6 +51,60 @@ window.gameState = window.gameState || {
     lastDeathReason: ''
 };
 
+// --- Persistence Logic ---
+function saveGame() {
+    const data = {
+        state: window.gameState,
+        timestamp: Date.now()
+    };
+    try {
+        localStorage.setItem('idlegame_save', JSON.stringify(data));
+    } catch (e) {
+        console.error("Save failed", e);
+    }
+}
+window.saveGame = saveGame;
+
+function loadGame() {
+    try {
+        const str = localStorage.getItem('idlegame_save');
+        if (str) {
+            const data = JSON.parse(str);
+            if (data.state) {
+                // Merge state
+                window.gameState = { ...window.gameState, ...data.state };
+            }
+
+            // Calculate Offline Earnings
+            const lastTime = data.timestamp || Date.now();
+            const now = Date.now();
+            const diffSeconds = (now - lastTime) / 1000;
+
+            if (diffSeconds > 1) {
+                let rate = 0;
+                if (window.gameState.hasCoinMaker) {
+                    rate = 1;
+                    if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
+                        rate = 2;
+                    }
+                }
+
+                if (rate > 0) {
+                    const earned = Math.floor(diffSeconds * rate);
+                    window.gameState.coins += earned;
+                    return earned;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Load failed", e);
+    }
+    return 0;
+}
+
+window.offlineEarnings = loadGame();
+// -------------------------
+
 let bigHoleGenerated = false;
 let jumps = 0;
 
@@ -450,6 +504,21 @@ function create() {
     this.monsters = monsters;
     this.clouds = clouds;
     this.player = player;
+
+    // Auto-save every 10 seconds
+    this.time.addEvent({
+        delay: 10000,
+        callback: () => window.saveGame(),
+        loop: true
+    });
+
+    // Notify about offline earnings
+    if (window.offlineEarnings && window.offlineEarnings > 0) {
+         this.time.delayedCall(1000, () => {
+             showStoryMessage(this, "Command Center: Offline mining complete. +" + window.offlineEarnings + " coins.");
+             window.offlineEarnings = 0;
+         });
+    }
 }
 
 function createUI(scene) {
@@ -719,6 +788,7 @@ function laserHitMonster(laser, monster) {
 
 function respawn(scene) {
     window.gameState.robotVersion++;
+    window.saveGame();
     scene.scene.restart();
 }
 
