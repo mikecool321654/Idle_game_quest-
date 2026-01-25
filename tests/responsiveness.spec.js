@@ -51,8 +51,8 @@ test.describe('Responsiveness and Visibility', () => {
     // Set to iPhone SE Landscape
     await page.setViewportSize({ width: 667, height: 375 });
 
-    // Allow resize event to fire
-    await page.waitForTimeout(1000);
+    // Allow resize event to fire and physics to settle (player might fall if platform is off-screen)
+    await page.waitForTimeout(3000);
 
     const check = await page.evaluate(() => {
       const scene = window.game.scene.scenes[0];
