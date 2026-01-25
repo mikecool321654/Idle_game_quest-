@@ -164,9 +164,9 @@ function create() {
         // Update Camera Offset
         // Re-establish follow with new offset
         const camOffsetY = (gameHeight * 0.15);
-        const camOffsetX = gameWidth * 0.2;
+        const camOffsetX = gameWidth * 0.35;
         if (player) {
-            this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
+            this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
         }
 
         if (scoreText) scoreText.setPosition(45, 16);
@@ -194,27 +194,6 @@ function create() {
         graphics.fillCircle(30, 15, 20);
         graphics.fillCircle(50, 15, 20);
         graphics.generateTexture('cloud', 80, 50);
-        graphics.clear();
-    }
-
-    // Mountain (Distant Object)
-    if (!this.textures.exists('mountain')) {
-        graphics.fillStyle(0x444477, 1);
-        graphics.beginPath();
-        graphics.moveTo(0, 100);
-        graphics.lineTo(50, 0);
-        graphics.lineTo(100, 100);
-        graphics.closePath();
-        graphics.fillPath();
-        // Snow Cap
-        graphics.fillStyle(0xffffff, 1);
-        graphics.beginPath();
-        graphics.moveTo(50, 0);
-        graphics.lineTo(35, 30);
-        graphics.lineTo(65, 30);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.generateTexture('mountain', 100, 100);
         graphics.clear();
     }
 
@@ -384,16 +363,6 @@ function create() {
         cloud.setScale(0.5 + Math.random() * 0.5);
     }
 
-    // Mountains
-    mountains = this.add.group();
-    for(let i=0; i<10; i++) {
-        let x = Phaser.Math.Between(0, gameWidth);
-        let y = gameHeight - Phaser.Math.Between(50, 200);
-        let mountain = mountains.create(x, y, 'mountain');
-        mountain.setScrollFactor(0.2);
-        mountain.setDepth(-50);
-    }
-
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
     stars = this.physics.add.staticGroup();
@@ -489,9 +458,9 @@ function create() {
 
     // Camera
     const camOffsetY = (gameHeight * 0.15);
-    const camOffsetX = gameWidth * 0.2;
-    this.cameras.main.startFollow(player, true, 0.08, 0.08, camOffsetX, camOffsetY);
-    this.cameras.main.setDeadzone(100, 100);
+    const camOffsetX = gameWidth * 0.35;
+    this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
+    // this.cameras.main.setDeadzone(100, 100);
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
@@ -530,7 +499,26 @@ function create() {
     // Notify about offline earnings
     if (window.offlineEarnings && window.offlineEarnings > 0) {
          this.time.delayedCall(1000, () => {
-             showStoryMessage(this, "Command Center: Offline mining complete. +" + window.offlineEarnings + " coins.");
+             const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, 'OFFLINE EARNINGS:\n+' + window.offlineEarnings, {
+                 fontSize: '80px',
+                 fontFamily: 'Arial',
+                 fontStyle: 'bold',
+                 fill: '#ffff00',
+                 align: 'center',
+                 stroke: '#000000',
+                 strokeThickness: 8
+             }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+
+             this.tweens.add({
+                 targets: earningsText,
+                 scale: { from: 0.5, to: 1.2 },
+                 duration: 1000,
+                 yoyo: true,
+                 hold: 2000,
+                 onComplete: () => {
+                     earningsText.destroy();
+                 }
+             });
              window.offlineEarnings = 0;
          });
     }
