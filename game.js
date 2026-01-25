@@ -151,6 +151,12 @@ function create() {
         gameWidth = gameSize.width;
         gameHeight = gameSize.height;
 
+        if (this.background) {
+             const newScale = gameHeight / 1536;
+             this.background.setScale(newScale);
+             this.background.setSize(gameWidth / newScale, 1536);
+        }
+
         // Update Camera Offset
         // Re-establish follow with new offset
         const camOffsetY = (gameHeight * 0.15);
@@ -356,33 +362,12 @@ function create() {
     // -------------------------
 
     // Background
-    this.cameras.main.setBackgroundColor('#87CEEB');
-
-    // Mountains
-    mountains = this.add.group();
-    for (let i = 0; i < 5; i++) {
-        let x = Phaser.Math.Between(2000, 4000);
-        let y = gameHeight - Phaser.Math.Between(50, 200);
-        let mountain = mountains.create(x, y, 'mountain');
-        mountain.setOrigin(0.5, 1);
-        let scale = Phaser.Math.FloatBetween(2.0, 4.0);
-        mountain.setScale(scale);
-        mountain.setScrollFactor(0.1);
-        mountain.setDepth(-10);
-        mountain.setTint(0x8888aa);
-    }
-
-    // Clouds
-    clouds = this.add.group();
-    for (let i = 0; i < 300; i++) {
-        let x = Phaser.Math.Between(0, gameWidth);
-        let y = Phaser.Math.Between(0, gameHeight * 0.9);
-        let cloud = clouds.create(x, y, 'cloud');
-        let scale = Phaser.Math.FloatBetween(0.5, 1.5);
-        cloud.setScale(scale);
-        cloud.setScrollFactor(0.3 + (scale * 0.1));
-        cloud.alpha = 0.8;
-    }
+    const bgScale = gameHeight / 1536;
+    this.background = this.add.tileSprite(0, 0, gameWidth / bgScale, 1536, 'bg_layer');
+    this.background.setOrigin(0, 0);
+    this.background.setScrollFactor(0);
+    this.background.setDepth(-100);
+    this.background.setScale(bgScale);
 
     // Platforms & Stars
     platforms = this.physics.add.staticGroup();
@@ -393,7 +378,7 @@ function create() {
     gemGroup = this.physics.add.staticGroup();
 
     // Initial Setup
-    lastPlatformY = gameHeight - 50;
+    lastPlatformY = gameHeight * 0.49;
     nextPlatformX = 0;
     bigHoleGenerated = false;
     jumps = 0;
@@ -507,7 +492,6 @@ function create() {
 
     // Expose for debugging/testing
     this.monsters = monsters;
-    this.clouds = clouds;
     this.player = player;
 
     // Auto-save every 10 seconds
@@ -647,12 +631,9 @@ function update() {
     }
 
     const camX = this.cameras.main.scrollX;
-    clouds.children.iterate((cloud) => {
-        if (cloud.x < camX - 400) {
-            cloud.x = camX + gameWidth + Phaser.Math.Between(100, 800);
-            cloud.y = Phaser.Math.Between(0, gameHeight * 0.9);
-        }
-    });
+    if (this.background) {
+        this.background.tilePositionX = camX / this.background.scaleX;
+    }
 
     monsters.children.iterate((monster) => {
         if (monster.body.touching.down) {
@@ -672,11 +653,6 @@ function update() {
         }
     });
 
-    mountains.children.iterate((mtn) => {
-        if (mtn.x < camX - 1000) {
-             mtn.x = camX + gameWidth + Phaser.Math.Between(200, 800);
-        }
-    });
 
     if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
         handleJump();
