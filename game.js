@@ -138,6 +138,8 @@ function preload() {
     // Load player spritesheet raw image
     this.load.image('player_raw', 'player_spritesheet.png');
     this.load.image('bg_layer', 'background.png');
+    this.load.image('floor_raw', 'floor.png');
+    this.load.image('peak_raw', 'peak.png');
 }
 
 function create() {
@@ -184,6 +186,10 @@ function create() {
 
     // --- Generate Textures ---
     const graphics = this.make.graphics();
+
+    // Process new assets
+    createCroppedTexture(this, 'floor_raw', 'ground');
+    createCroppedTexture(this, 'peak_raw', 'spike');
 
     // Cloud
     if (!this.textures.exists('cloud')) {
@@ -420,6 +426,7 @@ function create() {
 
     // Create initial ground
     createPlatform(this, 0, lastPlatformY, 1000);
+
     for(let k=0; k<4; k++) {
         let star = stars.get(400 + k*60, lastPlatformY - 50, 'star');
         if (star) star.enableBody(true, 400 + k*60, lastPlatformY - 50, true, true);
@@ -884,10 +891,23 @@ function respawn(scene) {
 }
 
 function createPlatform(scene, x, y, width, tint = 0xff00ff) {
-    const platform = platforms.create(x + width / 2, y, 'ground');
-    platform.displayWidth = width;
-    platform.displayHeight = 32;
-    platform.refreshBody();
+    const height = 32;
+    const centerX = x + width / 2;
+
+    // Use TileSprite for better visuals with textures
+    const platform = scene.add.tileSprite(centerX, y, width, height, 'ground');
+    platforms.add(platform);
+
+    // Scale tile to fit height if texture exists and is valid
+    if (scene.textures.exists('ground')) {
+         const tex = scene.textures.get('ground').getSourceImage();
+         if (tex && tex.height > 0) {
+             const scale = 32 / tex.height;
+             platform.setTileScale(scale, scale);
+         }
+    }
+
+    // platform.refreshBody(); // Not needed/available for TileSprite if sized at creation
     if (tint !== null) {
         platform.setTint(tint);
     }
@@ -926,11 +946,10 @@ function spawnNextPlatform(scene) {
     }
     if (Phaser.Math.Between(0, 100) < 10) {
         let unreachY = y - Phaser.Math.Between(300, 400);
-        let unreachPlat = platforms.create(startX, unreachY, 'ground');
-        unreachPlat.displayWidth = 200;
-        unreachPlat.displayHeight = 32;
-        unreachPlat.refreshBody();
-        unreachPlat.setTint(0x555555);
+        // Use createPlatform for consistency (TileSprite).
+        // Original logic used startX as center. createPlatform expects left edge.
+        // width 200 -> radius 100. Left = startX - 100.
+        createPlatform(scene, startX - 100, unreachY, 200, 0x555555);
         for(let k=0; k<5; k++) {
              let star = stars.get(startX - 80 + (k*40), unreachY - 50, 'star');
              if (star) star.enableBody(true, startX - 80 + (k*40), unreachY - 50, true, true);
@@ -948,7 +967,11 @@ function spawnNextPlatform(scene) {
         const numSpikes = Math.floor(width / spikeWidth);
         for(let i=0; i<numSpikes; i++) {
              let spike = spikes.get(startX + (i*spikeWidth) + 16, y - 32, 'spike');
-             if (spike) spike.enableBody(true, startX + (i*spikeWidth) + 16, y - 32, true, true);
+             if (spike) {
+                 spike.displayWidth = 32;
+                 spike.displayHeight = 32;
+                 spike.enableBody(true, startX + (i*spikeWidth) + 16, y - 32, true, true);
+             }
         }
     } else if (window.gameState.hasDoubleJump && nextPlatformX > TUTORIAL_LIMIT) {
         if (Phaser.Math.Between(0, 100) < 25) {
@@ -956,7 +979,11 @@ function spawnNextPlatform(scene) {
             for(let i=0; i<numSpikes; i++) {
                  let sx = startX + Phaser.Math.Between(50, width - 50);
                  let spike = spikes.get(sx, y - 32, 'spike');
-                 if (spike) spike.enableBody(true, sx, y - 32, true, true);
+                 if (spike) {
+                     spike.displayWidth = 32;
+                     spike.displayHeight = 32;
+                     spike.enableBody(true, sx, y - 32, true, true);
+                 }
             }
         }
     }
@@ -1103,4 +1130,50 @@ function toggleSettings(scene) {
         settingsContainer.setVisible(true);
         if (resumeBtn) resumeBtn.setVisible(true);
     }
+}
+
+// --- Helpers ---
+
+function createCroppedTexture(scene, sourceKey, newKey) {
+    if (!scene.textures.exists(sourceKey)) return;
+    const source = scene.textures.get(sourceKey).getSourceImage();
+    const canvas = scene.textures.createCanvas(newKey + '_temp', source.width, source.height);
+    const ctx = canvas.context;
+    ctx.drawImage(source, 0, 0);
+    const imageData = ctx.getImageData(0, 0, source.width, source.height);
+    const data = imageData.data;
+
+    let minX = source.width, minY = source.height, maxX = 0, maxY = 0;
+    let found = false;
+
+    for (let y = 0; y < source.height; y++) {
+        for (let x = 0; x < source.width; x++) {
+            const alpha = data[(y * source.width + x) * 4 + 3];
+            if (alpha > 0) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+                found = true;
+            }
+        }
+    }
+
+    if (!found) {
+        // Fallback to source if empty
+        scene.textures.addRenderTexture(newKey, scene.textures.get(sourceKey));
+        scene.textures.remove(newKey + '_temp');
+        return;
+    }
+
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+
+    // Create new texture
+    if (scene.textures.exists(newKey)) scene.textures.remove(newKey);
+    const finalCanvas = scene.textures.createCanvas(newKey, width, height);
+    finalCanvas.context.drawImage(source, minX, minY, width, height, 0, 0, width, height);
+    finalCanvas.refresh();
+
+    scene.textures.remove(newKey + '_temp');
 }

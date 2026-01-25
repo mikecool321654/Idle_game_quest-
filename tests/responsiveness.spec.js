@@ -66,7 +66,14 @@ test.describe('Responsiveness and Visibility', () => {
       // Actually platforms are created as 'ground' images in a StaticGroup. They should be in scene.children?
       // StaticGroup children are in the scene display list? Yes.
 
-      const platforms = scene.children.list.filter(c => c.texture && c.texture.key === 'ground');
+      const platforms = scene.children.list.filter(c => {
+          if (c.texture && c.texture.key === 'ground') return true;
+          // TileSprites (platforms) might behave differently.
+          // Background is also TileSprite but usually at y=0 or negative depth.
+          // Platforms are y > 100.
+          if (c.type === 'TileSprite' && c.y > 100) return true;
+          return false;
+      });
 
       // Find one platform that should be under the player or visible
       const visiblePlatform = platforms.find(p => camera.worldView.contains(p.x, p.y));
