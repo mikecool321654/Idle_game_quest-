@@ -27,6 +27,9 @@ class UpgradeScene extends Phaser.Scene {
             .on('pointerdown', () => this.closeScene())
             .setScrollFactor(0);
 
+        // Escape Key to Close
+        this.input.keyboard.on('keydown-ESC', () => this.closeScene());
+
         // Camera Pan Logic
         this.input.on('pointermove', (p) => {
             if (p.isDown) {
@@ -74,6 +77,9 @@ class UpgradeScene extends Phaser.Scene {
     }
 
     closeScene() {
+        // Set timestamp to prevent race condition with Game scene
+        window.lastUpgradeCloseTime = Date.now();
+
         // Try to find the default scene
         let mainScene = this.scene.get('default');
         if (!mainScene || !mainScene.sys.settings.active) {

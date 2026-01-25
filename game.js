@@ -582,10 +582,19 @@ function createUI(scene) {
 
     scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
 
-    scene.add.image(30, 100, 'gear')
+    const gear = scene.add.image(30, 100, 'gear')
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => toggleSettings(scene));
+        .on('pointerdown', () => toggleSettings(scene))
+        .on('pointerover', () => gear.setScale(1.1))
+        .on('pointerout', () => gear.setScale(1.0));
+
+    // Escape to Settings (Check if UpgradeScene is open/just closed)
+    scene.input.keyboard.on('keydown-ESC', () => {
+        if (scene.scene.isActive('UpgradeScene')) return;
+        if (Date.now() - (window.lastUpgradeCloseTime || 0) < 200) return;
+        toggleSettings(scene);
+    });
 
     createSettingsUI(scene);
     createMinimap(scene);
