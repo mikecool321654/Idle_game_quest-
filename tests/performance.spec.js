@@ -8,6 +8,13 @@ test('Check object pooling behavior', async ({ page }) => {
   await page.evaluate(() => {
     // Force generation
     player.x = 6000;
+    player.body.moves = false; // Disable physics to prevent falling
+    player.body.checkCollision.none = true; // Disable collisions (monsters)
+
+    // Manually update camera scroll to trigger generation logic immediately
+    // The game logic relies on camera.scrollX to decide when to spawn
+    const scene = window.game.scene.scenes[0];
+    scene.cameras.main.scrollX = player.x - 200;
   });
 
   // Wait for update loop to catch up and generate platforms/monsters
