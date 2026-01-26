@@ -384,6 +384,7 @@ function create() {
     jumps = 0;
     this.lastStoryMilestone = 0;
     this.startTime = this.time.now;
+    this.lastCleanupTime = 0;
 
     // Coin Maker Upgrade
     if (window.gameState.hasCoinMaker) {
@@ -656,6 +657,8 @@ function update() {
     }
 
     monsters.children.iterate((monster) => {
+        // Optimization: Skip processing for inactive entities
+        if (!monster.active) return;
         if (monster.body.touching.down) {
             if (Math.random() < 0.02) {
                 monster.setVelocityX(Phaser.Math.Between(-50, 50));
@@ -668,7 +671,8 @@ function update() {
 
     // Clean up Lasers
     lasers.children.iterate((laser) => {
-        if (laser.active && laser.x > camX + gameWidth + 100) {
+        if (!laser.active) return;
+        if (laser.x > camX + gameWidth + 100) {
             laser.disableBody(true, true);
         }
     });
@@ -798,7 +802,12 @@ function update() {
         }
     }
 
-    cleanup(this);
+    // Optimization: Throttle cleanup to run every 500ms instead of every frame
+    // This reduces the overhead of iterating through all entities to check bounds
+    if (this.time.now - this.lastCleanupTime > 500) {
+        cleanup(this);
+        this.lastCleanupTime = this.time.now;
+    }
 }
 
 function cleanup(scene) {
