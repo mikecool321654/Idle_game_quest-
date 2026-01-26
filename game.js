@@ -138,7 +138,7 @@ function preload() {
     // Load player spritesheet raw image
     this.load.image('player_raw', 'player_spritesheet.png');
     this.load.image('bg_layer', 'background.png');
-    this.load.image('floor_raw', 'floor.png');
+    this.load.image('floor_raw', 'platform_texture.png');
     this.load.image('peak_raw', 'peak.png');
 }
 
@@ -562,7 +562,6 @@ function createUI(scene) {
     });
 
     createSettingsUI(scene);
-    createMinimap(scene);
 
     let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
     if (window.gameState.robotVersion > 1) {
@@ -1097,20 +1096,18 @@ function createSettingsUI(scene) {
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => toggleSettings(scene));
     resumeBtn.setName('resumeBtn');
-}
 
-function createMinimap(scene) {
-    minimapContainer = scene.add.container(gameWidth - 200 - 20, gameHeight - 100 - 20).setScrollFactor(0).setDepth(90);
-    const bg = scene.add.rectangle(100, 50, 200, 100, 0x000000, 0.5);
-    bg.setStrokeStyle(2, 0xffffff);
-    minimapContainer.add(bg);
+    // Minimap inside Settings
+    minimapContainer = scene.add.container(gameWidth/2 - 100, 500);
+    const bgMap = scene.add.rectangle(100, 50, 200, 100, 0x000000, 0.5);
+    bgMap.setStrokeStyle(2, 0xffffff);
+    minimapContainer.add(bgMap);
     minimapPlayer = scene.add.circle(0, 0, 4, 0x00ff00);
     minimapContainer.add(minimapPlayer);
     minimapGem = scene.add.circle(195, 10, 4, 0x00ffff);
     minimapContainer.add(minimapGem);
-    scene.scale.on('resize', (gameSize) => {
-        minimapContainer.setPosition(gameSize.width - 200 - 20, gameSize.height - 100 - 20);
-    });
+
+    settingsContainer.add(minimapContainer);
 }
 
 function toggleSettings(scene) {
