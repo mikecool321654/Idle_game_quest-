@@ -22,7 +22,8 @@
   "devDependencies": {
     "@capacitor/cli": "^8.0.1",
     "@capacitor/ios": "^8.0.1",
-    "@playwright/test": "^1.58.0"
+    "@playwright/test": "^1.58.0",
+    "playwright": "^1.58.0"
   },
   "dependencies": {
     "@capacitor/core": "^8.0.1"

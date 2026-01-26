@@ -609,14 +609,22 @@ function createSettingsUI(scene) {
     const amelText = scene.add.text(gameWidth/2, 200, '', { fontSize: '24px', fill: '#fff', align: 'center', fontFamily: 'Courier' }).setOrigin(0.5);
     amelText.setName('amelText');
     settingsContainer.add(amelText);
-    const resumeBtn = scene.add.text(gameWidth/2, 400, 'RESUME', { fontSize: '32px', fill: '#0f0', backgroundColor: '#333', fontFamily: 'Courier' })
+    const resumeBtn = scene.add.text(gameWidth/2, 400, 'RESUME [ESC]', { fontSize: '32px', fill: '#0f0', backgroundColor: '#333', fontFamily: 'Courier' })
         .setPadding(10)
         .setOrigin(0.5)
         .setScrollFactor(0)
         .setDepth(101)
         .setVisible(false)
         .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => toggleSettings(scene));
+        .on('pointerdown', () => toggleSettings(scene))
+        .on('pointerover', () => {
+            resumeBtn.setScale(1.1);
+            resumeBtn.setColor('#ffffff');
+        })
+        .on('pointerout', () => {
+            resumeBtn.setScale(1.0);
+            resumeBtn.setColor('#0f0');
+        });
     resumeBtn.setName('resumeBtn');
 
     // Minimap inside Settings

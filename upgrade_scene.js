@@ -25,6 +25,8 @@ class UpgradeScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.closeScene())
+            .on('pointerover', () => closeBtn.setScale(1.2))
+            .on('pointerout', () => closeBtn.setScale(1.0))
             .setScrollFactor(0);
 
         // Escape Key to Close
