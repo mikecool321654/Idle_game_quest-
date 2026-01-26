@@ -1,27 +1,5 @@
-const config = {
-    type: Phaser.AUTO,
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: '100%',
-        height: '100%'
-    },
-    physics: {
-        default: 'arcade',
-        arcade: {
-            gravity: { y: 800 },
-            debug: false
-        }
-    },
-    render: {
-        roundPixels: true
-    },
-    scene: {
-        preload: preload,
-        create: create,
-        update: update
-    }
-};
 
+// Global Variables
 let player;
 let platforms;
 let clouds;
@@ -133,731 +111,12 @@ let minimapContainer;
 let minimapPlayer;
 let minimapGem;
 
-const game = new Phaser.Game(config);
-window.game = game;
 
-function preload() {
-    // Load player spritesheet raw image
-    this.load.image('player_raw', 'player_spritesheet.png');
-    this.load.image('bg_layer', 'background.png');
-    this.load.image('floor_raw', 'platform_texture.png');
-    this.load.image('peak_raw', 'peak.png');
-}
 
-function create() {
-    gameWidth = this.scale.width;
-    gameHeight = this.scale.height;
 
-    // Register UpgradeScene if not already
-    if (!this.scene.get('UpgradeScene')) {
-        if (typeof UpgradeScene !== 'undefined') {
-            this.scene.add('UpgradeScene', UpgradeScene, false);
-        }
-    }
 
-    this.scale.on('resize', (gameSize) => {
-        gameWidth = gameSize.width;
-        gameHeight = gameSize.height;
 
-        if (this.background) {
-             const newScale = gameHeight / 1536;
-             this.background.setScale(newScale);
-             this.background.setSize(gameWidth / newScale, 1536);
-        }
-
-        // Update Camera Offset
-        // Re-establish follow with new offset
-        const camOffsetY = (gameHeight * 0.15);
-        const camOffsetX = gameWidth * 0.35;
-        if (player) {
-            this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
-        }
-
-        if (scoreText) scoreText.setPosition(45, 16);
-        if (robotText) robotText.setPosition(16, 60);
-        if (shopText) shopText.setPosition(gameWidth - 16, 16);
-        if (storyText) {
-             if (gameHeight > gameWidth) {
-                 storyText.setPosition(gameWidth / 2, 130);
-             } else {
-                 storyText.setPosition(gameWidth / 2, gameHeight - 40);
-             }
-             storyText.setStyle({ wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true } });
-        }
-    });
-
-    // --- Generate Textures ---
-    const graphics = this.make.graphics();
-
-    // Process new assets
-    createCroppedTexture(this, 'floor_raw', 'ground');
-    createCroppedTexture(this, 'peak_raw', 'spike');
-
-    // Cloud
-    if (!this.textures.exists('cloud')) {
-        graphics.fillStyle(0xffffff, 0.8);
-        graphics.fillCircle(20, 25, 20);
-        graphics.fillCircle(40, 25, 20);
-        graphics.fillCircle(60, 25, 20);
-        graphics.fillCircle(30, 15, 20);
-        graphics.fillCircle(50, 15, 20);
-        graphics.generateTexture('cloud', 80, 50);
-        graphics.clear();
-    }
-
-    // Ground
-    if (!this.textures.exists('ground')) {
-        graphics.fillStyle(0x66cc66, 1); // Grassy Green
-        graphics.fillRect(0, 0, 32, 32);
-        // Grass blades
-        graphics.fillStyle(0x44aa44, 1);
-        graphics.beginPath();
-        graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
-        graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
-        graphics.closePath();
-        graphics.fillPath();
-        // Dirt details
-        graphics.fillStyle(0x553311, 1);
-        graphics.fillCircle(16, 20, 2);
-        graphics.fillCircle(24, 28, 3);
-        graphics.generateTexture('ground', 32, 32);
-        graphics.clear();
-    }
-
-    // Spike
-    if (!this.textures.exists('spike')) {
-        graphics.fillStyle(0xff0000, 1);
-        graphics.beginPath();
-        graphics.moveTo(0, 32);
-        graphics.lineTo(16, 0);
-        graphics.lineTo(32, 32);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.generateTexture('spike', 32, 32);
-        graphics.clear();
-    }
-
-    // Monster
-    if (!this.textures.exists('monster')) {
-        graphics.fillStyle(0xcc0000, 1); // Dark Red
-        graphics.fillRect(0, 0, 32, 32);
-        // Eyes
-        graphics.fillStyle(0xffff00, 1); // Yellow eyes
-        graphics.fillCircle(8, 10, 4);
-        graphics.fillCircle(24, 10, 4);
-        graphics.fillStyle(0x000000, 1); // Pupils
-        graphics.fillCircle(8, 10, 1);
-        graphics.fillCircle(24, 10, 1);
-        // Teeth
-        graphics.fillStyle(0xffffff, 1);
-        graphics.beginPath();
-        graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
-        graphics.moveTo(12, 24); graphics.lineTo(16, 30); graphics.lineTo(20, 24);
-        graphics.moveTo(20, 24); graphics.lineTo(24, 30); graphics.lineTo(28, 24);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.generateTexture('monster', 32, 32);
-        graphics.clear();
-    }
-
-    // Star (Coin)
-    if (!this.textures.exists('star')) {
-        graphics.fillStyle(0xFFD700, 1); // Gold
-        graphics.fillCircle(12, 12, 10);
-        graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
-        graphics.strokeCircle(12, 12, 10);
-        graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
-        graphics.fillCircle(9, 9, 3);
-        // Extra Detail
-        graphics.fillStyle(0xFFFACD, 1);
-        graphics.fillCircle(12, 12, 5);
-        graphics.generateTexture('star', 24, 24);
-        graphics.clear();
-    }
-
-    // Gem (Objective)
-    if (!this.textures.exists('gem')) {
-        graphics.fillStyle(0x00ffff, 1); // Cyan
-        graphics.beginPath();
-        graphics.moveTo(12, 0);
-        graphics.lineTo(24, 12);
-        graphics.lineTo(12, 24);
-        graphics.lineTo(0, 12);
-        graphics.closePath();
-        graphics.fillPath();
-        graphics.generateTexture('gem', 24, 24);
-        graphics.clear();
-    }
-
-    // Gear (Settings Icon)
-    if (!this.textures.exists('gear')) {
-        graphics.fillStyle(0x888888, 1);
-        graphics.fillCircle(16, 16, 10);
-        graphics.lineStyle(4, 0x888888);
-        for (let i = 0; i < 8; i++) {
-            const angle = i * (Math.PI / 4);
-            const x = 16 + Math.cos(angle) * 14;
-            const y = 16 + Math.sin(angle) * 14;
-            graphics.moveTo(16, 16);
-            graphics.lineTo(x, y);
-        }
-        graphics.strokePath();
-        graphics.fillStyle(0x000000, 1); // Hole
-        graphics.fillCircle(16, 16, 4);
-        graphics.generateTexture('gear', 32, 32);
-        graphics.clear();
-    }
-
-    // Dude (Robot) Sprite Sheet
-    if (!this.textures.exists('dude_run') && this.textures.exists('player_raw')) {
-        const raw = this.textures.get('player_raw').getSourceImage();
-        const canvas = this.textures.createCanvas('dude_run', raw.width, raw.height);
-        const ctx = canvas.context;
-        ctx.drawImage(raw, 0, 0);
-
-        const imageData = ctx.getImageData(0, 0, raw.width, raw.height);
-        const data = imageData.data;
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            // Remove blue background (approx 16, 66, 122) OR white background
-            if ((Math.abs(r - 16) < 60 && Math.abs(g - 66) < 60 && Math.abs(b - 122) < 60) || (r > 200 && g > 200 && b > 200)) {
-                data[i + 3] = 0;
-            }
-        }
-        ctx.putImageData(imageData, 0, 0);
-        canvas.refresh();
-
-        // Add frames (Assume 6 cols, 5 rows)
-        const fW = Math.floor(raw.width / 6);
-        const fH = Math.floor(raw.height / 5);
-        for (let i = 0; i < 6; i++) {
-            const x = (i % 6) * fW;
-            const y = Math.floor(i / 6) * fH;
-            canvas.add(i, 0, x, y, fW, fH);
-        }
-    }
-
-    // Drone
-    if (!this.textures.exists('drone')) {
-        graphics.fillStyle(0x888888, 1);
-        graphics.fillCircle(10, 10, 10);
-        graphics.fillStyle(0x00ffff, 1); // Cyan eye
-        graphics.fillCircle(10, 10, 4);
-        graphics.generateTexture('drone', 20, 20);
-        graphics.clear();
-    }
-
-    graphics.destroy();
-    // -------------------------
-
-    // Background
-    const bgScale = gameHeight / 1536;
-    this.background = this.add.tileSprite(0, 0, gameWidth / bgScale, 1536, 'bg_layer');
-    this.background.setOrigin(0, 0);
-    this.background.setScrollFactor(0);
-    this.background.setDepth(-100);
-    this.background.setScale(bgScale);
-
-    // Clouds
-    clouds = this.add.group();
-    for(let i=0; i<15; i++) {
-        let x = Phaser.Math.Between(0, gameWidth);
-        let y = Phaser.Math.Between(0, gameHeight * 0.6);
-        let cloud = clouds.create(x, y, 'cloud');
-        cloud.setAlpha(0.8);
-        cloud.setScrollFactor(0.1 + Math.random() * 0.1);
-        cloud.setScale(0.5 + Math.random() * 0.5);
-    }
-
-    // Platforms & Stars
-    platforms = this.physics.add.staticGroup();
-    stars = this.physics.add.staticGroup();
-    spikes = this.physics.add.staticGroup();
-    monsters = this.physics.add.group();
-    lasers = this.physics.add.group(); // New
-    loot = this.physics.add.group(); // New Loot Group
-    gemGroup = this.physics.add.staticGroup();
-
-    // Initial Setup
-    lastPlatformY = gameHeight * 0.49;
-    nextPlatformX = 0;
-    bigHoleGenerated = false;
-    jumps = 0;
-    this.lastStoryMilestone = 0;
-    this.startTime = this.time.now;
-    this.lastCleanupTime = 0;
-
-    // Coin Maker Upgrade
-    if (window.gameState.hasCoinMaker) {
-        let delay = 1000;
-        if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
-            delay = 500; // Faster generation
-        }
-
-        this.time.addEvent({
-            delay: delay,
-            callback: () => {
-                // Idle Income with Exploration Bonus
-                let amount = 1;
-                const dist = window.gameState.maxDistance || 0;
-                const multiplier = 1 + Math.floor(dist / 2000);
-                amount = Math.floor(amount * multiplier);
-                amount = Math.max(1, amount);
-
-                // No visual pop-up for passive tick to avoid clutter?
-                // "Idle must be seen". Let's show it occasionally or smaller?
-                // Or just show it on the drone.
-                if (this.drone && this.drone.visible) {
-                    showFloatingText(this, this.drone.x, this.drone.y - 20, "+" + amount, '#00ffff');
-                }
-
-                window.gameState.coins += amount;
-                if (scoreText) scoreText.setText(window.gameState.coins);
-                updateShopUI();
-            },
-            loop: true
-        });
-    }
-
-    // Supply Drop (Periodic Reward)
-    this.time.addEvent({
-        delay: 120000, // 2 minutes
-        callback: () => {
-             const dist = window.gameState.maxDistance || 0;
-             const bonus = 1 + Math.floor(dist / 2000);
-             const reward = Math.floor(50 * bonus);
-             window.gameState.coins += reward;
-             if (scoreText) scoreText.setText(window.gameState.coins);
-             showStoryMessage(this, "Command Center: Supply Drop received. +" + reward + " coins.");
-             updateShopUI();
-
-             // Visual
-             showFloatingText(this, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
-        },
-        loop: true
-    });
-
-    // Create initial ground
-    createPlatform(this, 0, lastPlatformY, 1000);
-
-    for(let k=0; k<4; k++) {
-        let star = stars.get(400 + k*60, lastPlatformY - 50, 'star');
-        if (star) star.enableBody(true, 400 + k*60, lastPlatformY - 50, true, true);
-    }
-    nextPlatformX = 1000;
-
-    // Player
-    player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
-    player.setScale(0.4); // Scale down the large spritesheet
-    player.setBounce(0.0);
-    player.setCollideWorldBounds(false);
-
-    // Drone
-    this.drone = this.add.sprite(player.x, player.y - 50, 'drone');
-    this.drone.setVisible(false);
-
-    // Animations
-    if (!this.anims.exists('run')) {
-        this.anims.create({
-            key: 'run',
-            frames: this.anims.generateFrameNumbers('dude_run', { start: 0, end: 5 }),
-            frameRate: 10,
-            repeat: -1
-        });
-    }
-    player.anims.play('run', true);
-
-    // Physics
-    this.physics.add.collider(player, platforms);
-    this.physics.add.collider(player, spikes, hitSpike, null, this);
-    this.physics.add.collider(monsters, platforms);
-    this.physics.add.collider(loot, platforms); // Loot bounces on ground
-    this.physics.add.overlap(player, monsters, hitMonster, null, this); // Changed callback
-    this.physics.add.overlap(player, stars, collectStar, null, this);
-    this.physics.add.overlap(player, loot, collectLoot, null, this); // Collect Loot
-    this.physics.add.overlap(player, gemGroup, collectGem, null, this);
-    this.physics.add.overlap(lasers, monsters, laserHitMonster, null, this); // Laser collision
-
-    // Camera
-    const camOffsetY = (gameHeight * 0.15);
-    const camOffsetX = gameWidth * 0.35;
-    this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
-    // this.cameras.main.setDeadzone(100, 100);
-
-    // Input
-    cursors = this.input.keyboard.createCursorKeys();
-    keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
-    keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
-
-    this.input.on('pointerdown', (pointer) => {
-        if (pointer.y > 100) {
-             handleJump();
-        }
-    });
-
-    // Key listeners for actions
-    keyZ.on('down', () => {
-        if (window.gameState.hasSword) handleSword(this);
-    });
-    keyX.on('down', () => {
-        if (window.gameState.hasLaser) handleLaser(this);
-    });
-
-    // UI Setup
-    createUI(this);
-
-    // Update Zone Text immediately
-    if (zoneText) {
-         const dist = window.gameState.maxDistance || 0;
-         const zone = 1 + Math.floor(dist / 2000);
-         zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
-    }
-
-    // Expose for debugging/testing
-    this.monsters = monsters;
-    this.player = player;
-    this.clouds = clouds;
-
-    this.lastIdleSpawnTime = 0;
-
-    // Auto-save every 10 seconds
-    this.time.addEvent({
-        delay: 10000,
-        callback: () => window.saveGame(),
-        loop: true
-    });
-
-    // Notify about offline earnings
-    if (window.offlineEarnings && window.offlineEarnings > 0) {
-         this.time.delayedCall(1000, () => {
-             const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, 'OFFLINE EARNINGS:\n+' + window.offlineEarnings, {
-                 fontSize: '80px',
-                 fontFamily: 'Arial',
-                 fontStyle: 'bold',
-                 fill: '#ffff00',
-                 align: 'center',
-                 stroke: '#000000',
-                 strokeThickness: 8
-             }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
-
-             this.tweens.add({
-                 targets: earningsText,
-                 scale: { from: 0.5, to: 1.2 },
-                 duration: 1000,
-                 yoyo: true,
-                 hold: 2000,
-                 onComplete: () => {
-                     earningsText.destroy();
-                 }
-             });
-             window.offlineEarnings = 0;
-         });
-    }
-}
-
-function createUI(scene) {
-    scene.add.image(24, 32, 'star').setScrollFactor(0);
-    scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
-
-    robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
-
-    zoneText = scene.add.text(16, 90, 'ZONE 1\n(x1)', { fontSize: '20px', fill: '#ffff00', fontFamily: 'Courier' }).setScrollFactor(0);
-
-    shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
-        .setOrigin(1, 0)
-        .setScrollFactor(0)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => handleShopAction(scene))
-        .on('pointerover', () => shopText.setScale(1.1))
-        .on('pointerout', () => shopText.setScale(1.0));
-
-    scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
-
-    const gear = scene.add.image(30, 100, 'gear')
-        .setScrollFactor(0)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => toggleSettings(scene))
-        .on('pointerover', () => gear.setScale(1.1))
-        .on('pointerout', () => gear.setScale(1.0));
-
-    // Escape to Settings (Check if UpgradeScene is open/just closed)
-    scene.input.keyboard.on('keydown-ESC', () => {
-        if (scene.scene.isActive('UpgradeScene')) return;
-        if (Date.now() - (window.lastUpgradeCloseTime || 0) < 200) return;
-        toggleSettings(scene);
-    });
-
-    createSettingsUI(scene);
-
-    let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
-    if (window.gameState.robotVersion > 1) {
-        // ... (Same lore messages logic)
-        const loreMessages = [
-            "Command Center: We are the Overwatch. We guide you to the Gem.",
-            "Command Center: The Gem is the key to our survival.",
-            "Command Center: Atmospheric sensors indicate high toxicity. Proceed with caution.",
-            "Command Center: Reconstructing unit... Optimizing for local gravity.",
-            "Command Center: Previous data packet received. Analyzing failure.",
-            "Command Center: Remember, coins can be exchanged for upgrades.",
-            "Command Center: Do not fear the void. You are replaceable.",
-            "Command Center: Planet Xylos was once inhabited. Now, only ruins remain."
-        ];
-
-        if (window.gameState.lastDeathReason === 'fall') {
-             const fallMessages = [
-                 "Command Center: Gravity check... Status: Working.",
-                 "Command Center: Did you forget your jetpack? Oh wait, you don't have one yet.",
-                 "Command Center: That was a long way down.",
-                 "Command Center: Aim for the platform next time.",
-                 "Command Center: Splat.",
-                 "Command Center: Error: Flight module not found.",
-                 "Command Center: Nice dive! 10/10 for form, 0/10 for survival.",
-                 "Command Center: Issuing gravity assist... Just kidding.",
-                 "Command Center: Maybe try jumping *onto* the ground?"
-             ];
-             if (!window.gameState.hasDoubleJump) {
-                 fallMessages.push("Command Center: Gravity is harsh. A double jump would help!");
-             }
-             storyMsg = Phaser.Utils.Array.GetRandom(fallMessages);
-        } else if (window.gameState.lastDeathReason === 'spike' && !window.gameState.hasArmor) {
-             storyMsg = "Command Center: Spikes detected. Armor plating recommended.";
-        } else if (window.gameState.lastDeathReason === 'monster') {
-             if (window.gameState.hasSword || window.gameState.hasLaser) {
-                 storyMsg = "Command Center: You have weapons. Use them.";
-             } else {
-                 storyMsg = "Command Center: Hostile organism detected. Avoidance advised.";
-             }
-        } else {
-             if (Phaser.Math.Between(0, 100) > 60) {
-                 storyMsg = Phaser.Utils.Array.GetRandom(loreMessages);
-             } else {
-                 storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
-             }
-        }
-    }
-
-    // New Control Hints
-    if (window.gameState.hasSword && !window.gameState.hasLaser) {
-        storyMsg += " [Press Z to Attack]";
-    } else if (window.gameState.hasLaser) {
-        storyMsg += " [Press Z: Sword | X: Laser]";
-    }
-
-    storyText = scene.add.text(gameWidth / 2, gameHeight - 40, storyMsg, {
-        fontSize: '20px',
-        fill: '#0f0',
-        backgroundColor: '#00000088',
-        padding: { x: 10, y: 5 },
-        fontFamily: 'Courier',
-        wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true }
-    })
-    .setOrigin(0.5)
-    .setScrollFactor(0);
-
-    scene.time.delayedCall(8000, () => {
-        scene.tweens.add({
-            targets: storyText,
-            alpha: 0,
-            duration: 1000
-        });
-    });
-
-    updateShopUI();
-}
-
-function update() {
-    player.setVelocityX(250);
-
-    if (player.body.touching.down) {
-        player.anims.play('run', true);
-        jumps = 0;
-    } else {
-        player.anims.stop();
-        player.setFrame(2);
-    }
-
-    const camX = this.cameras.main.scrollX;
-    if (this.background) {
-        this.background.tilePositionX = camX / this.background.scaleX;
-    }
-
-    monsters.children.iterate((monster) => {
-        // Optimization: Skip processing for inactive entities
-        if (!monster.active) return;
-        if (monster.body.touching.down) {
-            if (Math.random() < 0.02) {
-                monster.setVelocityX(Phaser.Math.Between(-50, 50));
-            }
-            if (monster.body.velocity.x === 0) {
-                 monster.setVelocityX(Phaser.Math.Between(-30, 30));
-            }
-        }
-    });
-
-    // Clean up Lasers
-    lasers.children.iterate((laser) => {
-        if (!laser.active) return;
-        if (laser.x > camX + gameWidth + 100) {
-            laser.disableBody(true, true);
-        }
-    });
-
-
-    if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
-        handleJump();
-    }
-
-    if (window.gameState.hasJetpack && (cursors.space.isDown || cursors.up.isDown) && !player.body.touching.down) {
-        player.setVelocityY(-300);
-    }
-
-    const scrollX = this.cameras.main.scrollX;
-    const rightEdge = scrollX + gameWidth;
-
-    if (nextPlatformX < rightEdge + 800) {
-        spawnNextPlatform(this);
-    }
-
-    if (player.y > lastPlatformY + 300) {
-        window.gameState.lastDeathReason = 'fall';
-        respawn(this);
-    }
-
-    const dist = Math.floor(player.x);
-    if (dist > 2000 && this.lastStoryMilestone < 2000) {
-        showStoryMessage(this, "Command Center: Signal detected. It's faint... but it's there.");
-        this.lastStoryMilestone = 2000;
-    } else if (dist > 3000 && this.lastStoryMilestone < 3000) {
-        showStoryMessage(this, "Command Center: Leaving safe zone. Terrain instability detected.");
-        this.lastStoryMilestone = 3000;
-    } else if (dist > 4500 && this.lastStoryMilestone < 4500) {
-        showStoryMessage(this, "Command Center: Energy signatures consistent with Gem proximity.");
-        this.lastStoryMilestone = 4500;
-    }
-
-    if (minimapContainer && minimapPlayer) {
-        const GOAL_X = 15000;
-        const MAP_WIDTH = 200;
-        const MAP_HEIGHT = 100;
-        const scaleX = MAP_WIDTH / GOAL_X;
-        const scaleY = MAP_HEIGHT / gameHeight;
-        let px = Phaser.Math.Clamp(player.x * scaleX, 0, MAP_WIDTH);
-        let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
-        minimapPlayer.setPosition(px, py);
-        minimapGem.setPosition(MAP_WIDTH - 5, 10);
-    }
-
-    // --- IDLE MECHANICS ---
-
-    // Exploration Tracking
-    const currentDist = Math.floor(player.x);
-    if (currentDist > (window.gameState.maxDistance || 0)) {
-        window.gameState.maxDistance = currentDist;
-        // Update Zone Text
-        if (zoneText) {
-             const zone = 1 + Math.floor(currentDist / 2000);
-             zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
-        }
-    }
-
-    // Drone Visual
-    if (window.gameState.hasCoinMaker) {
-         if (this.drone && !this.drone.visible) this.drone.setVisible(true);
-         if (this.drone) {
-             this.drone.x = Phaser.Math.Interpolation.Linear([this.drone.x, player.x - 30], 0.1);
-             this.drone.y = Phaser.Math.Interpolation.Linear([this.drone.y, player.y - 50], 0.1);
-         }
-    }
-
-    // Magnet
-    if (window.gameState.hasMagnet) {
-        const magnetRange = 300;
-        stars.children.iterate((star) => {
-            if (star.active && Phaser.Math.Distance.Between(player.x, player.y, star.x, star.y) < magnetRange) {
-                const angle = Phaser.Math.Angle.Between(star.x, star.y, player.x, player.y);
-                const speed = 10;
-                star.x += Math.cos(angle) * speed;
-                star.y += Math.sin(angle) * speed;
-                star.refreshBody();
-            }
-        });
-        gemGroup.children.iterate((gem) => {
-             if (gem.active && Phaser.Math.Distance.Between(player.x, player.y, gem.x, gem.y) < magnetRange) {
-                const angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
-                const speed = 10;
-                gem.x += Math.cos(angle) * speed;
-                gem.y += Math.sin(angle) * speed;
-                gem.refreshBody();
-            }
-        });
-        loot.children.iterate((item) => {
-             if (item.active && Phaser.Math.Distance.Between(player.x, player.y, item.x, item.y) < magnetRange) {
-                const angle = Phaser.Math.Angle.Between(item.x, item.y, player.x, player.y);
-                const speed = 12; // Loot is lighter?
-                item.setVelocityX(Math.cos(angle) * 400); // Dynamic body uses velocity
-                item.setVelocityY(Math.sin(angle) * 400);
-            }
-        });
-    }
-
-    // Auto-Jump
-    if (window.gameState.hasAutoJump && player.body.touching.down) {
-        const checkX = player.x + 100;
-        const checkY = player.y + 48;
-        let groundFound = false;
-        platforms.children.iterate((plat) => {
-            if (Math.abs(plat.x - checkX) < (plat.displayWidth / 2 + 10) && Math.abs(plat.y - checkY) < 50) {
-                groundFound = true;
-            }
-        });
-        if (!groundFound) {
-            handleJump();
-        }
-    }
-
-    // Auto-Attack
-    if (window.gameState.hasAutoAttack) {
-        const now = this.time.now;
-        if (!this.lastAutoAttackTime || now - this.lastAutoAttackTime > 1000) {
-            let target = null;
-            let minDist = 400;
-            monsters.children.iterate((monster) => {
-                if (monster.active) {
-                    const d = Phaser.Math.Distance.Between(player.x, player.y, monster.x, monster.y);
-                    if (d < minDist && monster.x > player.x) {
-                        minDist = d;
-                        target = monster;
-                    }
-                }
-            });
-
-            if (target) {
-                if (window.gameState.hasLaser) {
-                    handleLaser(this);
-                    this.lastAutoAttackTime = now;
-                } else if (window.gameState.hasSword && minDist < 100) {
-                    handleSword(this);
-                    this.lastAutoAttackTime = now;
-                }
-            }
-        }
-    }
-
-    // Optimization: Throttle cleanup to run every 500ms instead of every frame
-    // This reduces the overhead of iterating through all entities to check bounds
-    if (this.time.now - this.lastCleanupTime > 500) {
-        cleanup(this);
-        this.lastCleanupTime = this.time.now;
-    }
-
-    // Idle Spawning (Horde Mode)
-    if (this.time.now - this.lastIdleSpawnTime > 5000) { // Every 5 seconds try to spawn
-        attemptIdleSpawn(this);
-        this.lastIdleSpawnTime = this.time.now;
-    }
-}
+// --- Helpers ---
 
 function attemptIdleSpawn(scene) {
     // Only spawn if player is alive and we aren't overwhelmed
@@ -1231,6 +490,116 @@ function updateShopUI() {
     }
 }
 
+function createUI(scene) {
+    scene.add.image(24, 32, 'star').setScrollFactor(0);
+    scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
+
+    robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
+
+    zoneText = scene.add.text(16, 90, 'ZONE 1\n(x1)', { fontSize: '20px', fill: '#ffff00', fontFamily: 'Courier' }).setScrollFactor(0);
+
+    shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
+        .setOrigin(1, 0)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => handleShopAction(scene))
+        .on('pointerover', () => shopText.setScale(1.1))
+        .on('pointerout', () => shopText.setScale(1.0));
+
+    scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
+
+    const gear = scene.add.image(30, 100, 'gear')
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => toggleSettings(scene))
+        .on('pointerover', () => gear.setScale(1.1))
+        .on('pointerout', () => gear.setScale(1.0));
+
+    // Escape to Settings (Check if UpgradeScene is open/just closed)
+    scene.input.keyboard.on('keydown-ESC', () => {
+        if (scene.scene.isActive('UpgradeScene')) return;
+        if (Date.now() - (window.lastUpgradeCloseTime || 0) < 200) return;
+        toggleSettings(scene);
+    });
+
+    createSettingsUI(scene);
+
+    let storyMsg = "Command Center: System Online. Objective: Explore Planet Xylos. Find the Gem.";
+    if (window.gameState.robotVersion > 1) {
+        // ... (Same lore messages logic)
+        const loreMessages = [
+            "Command Center: We are the Overwatch. We guide you to the Gem.",
+            "Command Center: The Gem is the key to our survival.",
+            "Command Center: Atmospheric sensors indicate high toxicity. Proceed with caution.",
+            "Command Center: Reconstructing unit... Optimizing for local gravity.",
+            "Command Center: Previous data packet received. Analyzing failure.",
+            "Command Center: Remember, coins can be exchanged for upgrades.",
+            "Command Center: Do not fear the void. You are replaceable.",
+            "Command Center: Planet Xylos was once inhabited. Now, only ruins remain."
+        ];
+
+        if (window.gameState.lastDeathReason === 'fall') {
+             const fallMessages = [
+                 "Command Center: Gravity check... Status: Working.",
+                 "Command Center: Did you forget your jetpack? Oh wait, you don't have one yet.",
+                 "Command Center: That was a long way down.",
+                 "Command Center: Aim for the platform next time.",
+                 "Command Center: Splat.",
+                 "Command Center: Error: Flight module not found.",
+                 "Command Center: Nice dive! 10/10 for form, 0/10 for survival.",
+                 "Command Center: Issuing gravity assist... Just kidding.",
+                 "Command Center: Maybe try jumping *onto* the ground?"
+             ];
+             if (!window.gameState.hasDoubleJump) {
+                 fallMessages.push("Command Center: Gravity is harsh. A double jump would help!");
+             }
+             storyMsg = Phaser.Utils.Array.GetRandom(fallMessages);
+        } else if (window.gameState.lastDeathReason === 'spike' && !window.gameState.hasArmor) {
+             storyMsg = "Command Center: Spikes detected. Armor plating recommended.";
+        } else if (window.gameState.lastDeathReason === 'monster') {
+             if (window.gameState.hasSword || window.gameState.hasLaser) {
+                 storyMsg = "Command Center: You have weapons. Use them.";
+             } else {
+                 storyMsg = "Command Center: Hostile organism detected. Avoidance advised.";
+             }
+        } else {
+             if (Phaser.Math.Between(0, 100) > 60) {
+                 storyMsg = Phaser.Utils.Array.GetRandom(loreMessages);
+             } else {
+                 storyMsg = "Command Center: Unit lost. Consciousness transferred to MK-" + window.gameState.robotVersion + ". Coins retained.";
+             }
+        }
+    }
+
+    // New Control Hints
+    if (window.gameState.hasSword && !window.gameState.hasLaser) {
+        storyMsg += " [Press Z to Attack]";
+    } else if (window.gameState.hasLaser) {
+        storyMsg += " [Press Z: Sword | X: Laser]";
+    }
+
+    storyText = scene.add.text(gameWidth / 2, gameHeight - 40, storyMsg, {
+        fontSize: '20px',
+        fill: '#0f0',
+        backgroundColor: '#00000088',
+        padding: { x: 10, y: 5 },
+        fontFamily: 'Courier',
+        wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true }
+    })
+    .setOrigin(0.5)
+    .setScrollFactor(0);
+
+    scene.time.delayedCall(8000, () => {
+        scene.tweens.add({
+            targets: storyText,
+            alpha: 0,
+            duration: 1000
+        });
+    });
+
+    updateShopUI();
+}
+
 function createSettingsUI(scene) {
     settingsContainer = scene.add.container(0, 0).setScrollFactor(0).setDepth(100).setVisible(false);
     const bg = scene.add.rectangle(gameWidth/2, gameHeight/2, gameWidth, gameHeight, 0x000000, 0.8);
@@ -1282,8 +651,6 @@ function toggleSettings(scene) {
     }
 }
 
-// --- Helpers ---
-
 function createCroppedTexture(scene, sourceKey, newKey) {
     if (!scene.textures.exists(sourceKey)) return;
     const source = scene.textures.get(sourceKey).getSourceImage();
@@ -1327,3 +694,646 @@ function createCroppedTexture(scene, sourceKey, newKey) {
 
     scene.textures.remove(newKey + '_temp');
 }
+
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'GameScene' });
+    }
+
+    preload() {
+        // Load player spritesheet raw image
+        this.load.image('player_raw', 'player_spritesheet.png');
+        this.load.image('bg_layer', 'background.png');
+        this.load.image('floor_raw', 'platform_texture.png');
+        this.load.image('peak_raw', 'peak.png');
+    }
+
+    create() {
+        gameWidth = this.scale.width;
+        gameHeight = this.scale.height;
+
+        // Register UpgradeScene if not already
+        if (!this.scene.get('UpgradeScene')) {
+            if (typeof UpgradeScene !== 'undefined') {
+                this.scene.add('UpgradeScene', UpgradeScene, false);
+            }
+        }
+
+        this.scale.on('resize', (gameSize) => {
+            gameWidth = gameSize.width;
+            gameHeight = gameSize.height;
+
+            if (this.background) {
+                 const newScale = gameHeight / 1536;
+                 this.background.setScale(newScale);
+                 this.background.setSize(gameWidth / newScale, 1536);
+            }
+
+            // Update Camera Offset
+            // Re-establish follow with new offset
+            const camOffsetY = (gameHeight * 0.15);
+            const camOffsetX = gameWidth * 0.35;
+            if (player) {
+                this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
+            }
+
+            if (scoreText) scoreText.setPosition(45, 16);
+            if (robotText) robotText.setPosition(16, 60);
+            if (shopText) shopText.setPosition(gameWidth - 16, 16);
+            if (storyText) {
+                 if (gameHeight > gameWidth) {
+                     storyText.setPosition(gameWidth / 2, 130);
+                 } else {
+                     storyText.setPosition(gameWidth / 2, gameHeight - 40);
+                 }
+                 storyText.setStyle({ wordWrap: { width: gameWidth * 0.9, useAdvancedWrap: true } });
+            }
+        });
+
+        // --- Generate Textures ---
+        const graphics = this.make.graphics();
+
+        // Process new assets
+        createCroppedTexture(this, 'floor_raw', 'ground');
+        createCroppedTexture(this, 'peak_raw', 'spike');
+
+        // Cloud
+        if (!this.textures.exists('cloud')) {
+            graphics.fillStyle(0xffffff, 0.8);
+            graphics.fillCircle(20, 25, 20);
+            graphics.fillCircle(40, 25, 20);
+            graphics.fillCircle(60, 25, 20);
+            graphics.fillCircle(30, 15, 20);
+            graphics.fillCircle(50, 15, 20);
+            graphics.generateTexture('cloud', 80, 50);
+            graphics.clear();
+        }
+
+        // Ground
+        if (!this.textures.exists('ground')) {
+            graphics.fillStyle(0x66cc66, 1); // Grassy Green
+            graphics.fillRect(0, 0, 32, 32);
+            // Grass blades
+            graphics.fillStyle(0x44aa44, 1);
+            graphics.beginPath();
+            graphics.moveTo(0, 0); graphics.lineTo(4, 8); graphics.lineTo(8, 0);
+            graphics.moveTo(10, 0); graphics.lineTo(14, 6); graphics.lineTo(18, 0);
+            graphics.closePath();
+            graphics.fillPath();
+            // Dirt details
+            graphics.fillStyle(0x553311, 1);
+            graphics.fillCircle(16, 20, 2);
+            graphics.fillCircle(24, 28, 3);
+            graphics.generateTexture('ground', 32, 32);
+            graphics.clear();
+        }
+
+        // Spike
+        if (!this.textures.exists('spike')) {
+            graphics.fillStyle(0xff0000, 1);
+            graphics.beginPath();
+            graphics.moveTo(0, 32);
+            graphics.lineTo(16, 0);
+            graphics.lineTo(32, 32);
+            graphics.closePath();
+            graphics.fillPath();
+            graphics.generateTexture('spike', 32, 32);
+            graphics.clear();
+        }
+
+        // Monster
+        if (!this.textures.exists('monster')) {
+            graphics.fillStyle(0xcc0000, 1); // Dark Red
+            graphics.fillRect(0, 0, 32, 32);
+            // Eyes
+            graphics.fillStyle(0xffff00, 1); // Yellow eyes
+            graphics.fillCircle(8, 10, 4);
+            graphics.fillCircle(24, 10, 4);
+            graphics.fillStyle(0x000000, 1); // Pupils
+            graphics.fillCircle(8, 10, 1);
+            graphics.fillCircle(24, 10, 1);
+            // Teeth
+            graphics.fillStyle(0xffffff, 1);
+            graphics.beginPath();
+            graphics.moveTo(4, 24); graphics.lineTo(8, 30); graphics.lineTo(12, 24);
+            graphics.moveTo(12, 24); graphics.lineTo(16, 30); graphics.lineTo(20, 24);
+            graphics.moveTo(20, 24); graphics.lineTo(24, 30); graphics.lineTo(28, 24);
+            graphics.closePath();
+            graphics.fillPath();
+            graphics.generateTexture('monster', 32, 32);
+            graphics.clear();
+        }
+
+        // Star (Coin)
+        if (!this.textures.exists('star')) {
+            graphics.fillStyle(0xFFD700, 1); // Gold
+            graphics.fillCircle(12, 12, 10);
+            graphics.lineStyle(2, 0xB8860B, 1); // Darker Gold Rim
+            graphics.strokeCircle(12, 12, 10);
+            graphics.fillStyle(0xFFFACD, 0.5); // Inner Shine
+            graphics.fillCircle(9, 9, 3);
+            // Extra Detail
+            graphics.fillStyle(0xFFFACD, 1);
+            graphics.fillCircle(12, 12, 5);
+            graphics.generateTexture('star', 24, 24);
+            graphics.clear();
+        }
+
+        // Gem (Objective)
+        if (!this.textures.exists('gem')) {
+            graphics.fillStyle(0x00ffff, 1); // Cyan
+            graphics.beginPath();
+            graphics.moveTo(12, 0);
+            graphics.lineTo(24, 12);
+            graphics.lineTo(12, 24);
+            graphics.lineTo(0, 12);
+            graphics.closePath();
+            graphics.fillPath();
+            graphics.generateTexture('gem', 24, 24);
+            graphics.clear();
+        }
+
+        // Gear (Settings Icon)
+        if (!this.textures.exists('gear')) {
+            graphics.fillStyle(0x888888, 1);
+            graphics.fillCircle(16, 16, 10);
+            graphics.lineStyle(4, 0x888888);
+            for (let i = 0; i < 8; i++) {
+                const angle = i * (Math.PI / 4);
+                const x = 16 + Math.cos(angle) * 14;
+                const y = 16 + Math.sin(angle) * 14;
+                graphics.moveTo(16, 16);
+                graphics.lineTo(x, y);
+            }
+            graphics.strokePath();
+            graphics.fillStyle(0x000000, 1); // Hole
+            graphics.fillCircle(16, 16, 4);
+            graphics.generateTexture('gear', 32, 32);
+            graphics.clear();
+        }
+
+        // Dude (Robot) Sprite Sheet
+        if (!this.textures.exists('dude_run') && this.textures.exists('player_raw')) {
+            const raw = this.textures.get('player_raw').getSourceImage();
+            const canvas = this.textures.createCanvas('dude_run', raw.width, raw.height);
+            const ctx = canvas.context;
+            ctx.drawImage(raw, 0, 0);
+
+            const imageData = ctx.getImageData(0, 0, raw.width, raw.height);
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                // Remove blue background (approx 16, 66, 122) OR white background
+                if ((Math.abs(r - 16) < 60 && Math.abs(g - 66) < 60 && Math.abs(b - 122) < 60) || (r > 200 && g > 200 && b > 200)) {
+                    data[i + 3] = 0;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+            canvas.refresh();
+
+            // Add frames (Assume 6 cols, 5 rows)
+            const fW = Math.floor(raw.width / 6);
+            const fH = Math.floor(raw.height / 5);
+            for (let i = 0; i < 6; i++) {
+                const x = (i % 6) * fW;
+                const y = Math.floor(i / 6) * fH;
+                canvas.add(i, 0, x, y, fW, fH);
+            }
+        }
+
+        // Drone
+        if (!this.textures.exists('drone')) {
+            graphics.fillStyle(0x888888, 1);
+            graphics.fillCircle(10, 10, 10);
+            graphics.fillStyle(0x00ffff, 1); // Cyan eye
+            graphics.fillCircle(10, 10, 4);
+            graphics.generateTexture('drone', 20, 20);
+            graphics.clear();
+        }
+
+        graphics.destroy();
+        // -------------------------
+
+        // Background
+        const bgScale = gameHeight / 1536;
+        this.background = this.add.tileSprite(0, 0, gameWidth / bgScale, 1536, 'bg_layer');
+        this.background.setOrigin(0, 0);
+        this.background.setScrollFactor(0);
+        this.background.setDepth(-100);
+        this.background.setScale(bgScale);
+
+        // Clouds
+        clouds = this.add.group();
+        for(let i=0; i<15; i++) {
+            let x = Phaser.Math.Between(0, gameWidth);
+            let y = Phaser.Math.Between(0, gameHeight * 0.6);
+            let cloud = clouds.create(x, y, 'cloud');
+            cloud.setAlpha(0.8);
+            cloud.setScrollFactor(0.1 + Math.random() * 0.1);
+            cloud.setScale(0.5 + Math.random() * 0.5);
+        }
+
+        // Platforms & Stars
+        platforms = this.physics.add.staticGroup();
+        stars = this.physics.add.staticGroup();
+        spikes = this.physics.add.staticGroup();
+        monsters = this.physics.add.group();
+        lasers = this.physics.add.group(); // New
+        loot = this.physics.add.group(); // New Loot Group
+        gemGroup = this.physics.add.staticGroup();
+
+        // Initial Setup
+        lastPlatformY = gameHeight * 0.49;
+        nextPlatformX = 0;
+        bigHoleGenerated = false;
+        jumps = 0;
+        this.lastStoryMilestone = 0;
+        this.startTime = this.time.now;
+        this.lastCleanupTime = 0;
+
+        // Coin Maker Upgrade
+        if (window.gameState.hasCoinMaker) {
+            let delay = 1000;
+            if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
+                delay = 500; // Faster generation
+            }
+
+            this.time.addEvent({
+                delay: delay,
+                callback: () => {
+                    // Idle Income with Exploration Bonus
+                    let amount = 1;
+                    const dist = window.gameState.maxDistance || 0;
+                    const multiplier = 1 + Math.floor(dist / 2000);
+                    amount = Math.floor(amount * multiplier);
+                    amount = Math.max(1, amount);
+
+                    // No visual pop-up for passive tick to avoid clutter?
+                    // "Idle must be seen". Let's show it occasionally or smaller?
+                    // Or just show it on the drone.
+                    if (this.drone && this.drone.visible) {
+                        showFloatingText(this, this.drone.x, this.drone.y - 20, "+" + amount, '#00ffff');
+                    }
+
+                    window.gameState.coins += amount;
+                    if (scoreText) scoreText.setText(window.gameState.coins);
+                    updateShopUI();
+                },
+                loop: true
+            });
+        }
+
+        // Supply Drop (Periodic Reward)
+        this.time.addEvent({
+            delay: 120000, // 2 minutes
+            callback: () => {
+                 const dist = window.gameState.maxDistance || 0;
+                 const bonus = 1 + Math.floor(dist / 2000);
+                 const reward = Math.floor(50 * bonus);
+                 window.gameState.coins += reward;
+                 if (scoreText) scoreText.setText(window.gameState.coins);
+                 showStoryMessage(this, "Command Center: Supply Drop received. +" + reward + " coins.");
+                 updateShopUI();
+
+                 // Visual
+                 showFloatingText(this, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
+            },
+            loop: true
+        });
+
+        // Create initial ground
+        createPlatform(this, 0, lastPlatformY, 1000);
+
+        for(let k=0; k<4; k++) {
+            let star = stars.get(400 + k*60, lastPlatformY - 50, 'star');
+            if (star) star.enableBody(true, 400 + k*60, lastPlatformY - 50, true, true);
+        }
+        nextPlatformX = 1000;
+
+        // Player
+        player = this.physics.add.sprite(100, lastPlatformY - 100, 'dude_run');
+        player.setScale(0.4); // Scale down the large spritesheet
+        player.setBounce(0.0);
+        player.setCollideWorldBounds(false);
+
+        // Drone
+        this.drone = this.add.sprite(player.x, player.y - 50, 'drone');
+        this.drone.setVisible(false);
+
+        // Animations
+        if (!this.anims.exists('run')) {
+            this.anims.create({
+                key: 'run',
+                frames: this.anims.generateFrameNumbers('dude_run', { start: 0, end: 5 }),
+                frameRate: 10,
+                repeat: -1
+            });
+        }
+        player.anims.play('run', true);
+
+        // Physics
+        this.physics.add.collider(player, platforms);
+        this.physics.add.collider(player, spikes, hitSpike, null, this);
+        this.physics.add.collider(monsters, platforms);
+        this.physics.add.collider(loot, platforms); // Loot bounces on ground
+        this.physics.add.overlap(player, monsters, hitMonster, null, this); // Changed callback
+        this.physics.add.overlap(player, stars, collectStar, null, this);
+        this.physics.add.overlap(player, loot, collectLoot, null, this); // Collect Loot
+        this.physics.add.overlap(player, gemGroup, collectGem, null, this);
+        this.physics.add.overlap(lasers, monsters, laserHitMonster, null, this); // Laser collision
+
+        // Camera
+        const camOffsetY = (gameHeight * 0.15);
+        const camOffsetX = gameWidth * 0.35;
+        this.cameras.main.startFollow(player, true, 0.08, 0.08, -camOffsetX, camOffsetY);
+        // this.cameras.main.setDeadzone(100, 100);
+
+        // Input
+        cursors = this.input.keyboard.createCursorKeys();
+        keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+        keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+
+        this.input.on('pointerdown', (pointer) => {
+            if (pointer.y > 100) {
+                 handleJump();
+            }
+        });
+
+        // Key listeners for actions
+        keyZ.on('down', () => {
+            if (window.gameState.hasSword) handleSword(this);
+        });
+        keyX.on('down', () => {
+            if (window.gameState.hasLaser) handleLaser(this);
+        });
+
+        // UI Setup
+        createUI(this);
+
+        // Update Zone Text immediately
+        if (zoneText) {
+             const dist = window.gameState.maxDistance || 0;
+             const zone = 1 + Math.floor(dist / 2000);
+             zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
+        }
+
+        // Expose for debugging/testing
+        this.monsters = monsters;
+        this.player = player;
+        this.clouds = clouds;
+
+        this.lastIdleSpawnTime = 0;
+
+        // Auto-save every 10 seconds
+        this.time.addEvent({
+            delay: 10000,
+            callback: () => window.saveGame(),
+            loop: true
+        });
+
+        // Notify about offline earnings
+        if (window.offlineEarnings && window.offlineEarnings > 0) {
+             this.time.delayedCall(1000, () => {
+                 const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, 'OFFLINE EARNINGS:\n+' + window.offlineEarnings, {
+                     fontSize: '80px',
+                     fontFamily: 'Arial',
+                     fontStyle: 'bold',
+                     fill: '#ffff00',
+                     align: 'center',
+                     stroke: '#000000',
+                     strokeThickness: 8
+                 }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
+
+                 this.tweens.add({
+                     targets: earningsText,
+                     scale: { from: 0.5, to: 1.2 },
+                     duration: 1000,
+                     yoyo: true,
+                     hold: 2000,
+                     onComplete: () => {
+                         earningsText.destroy();
+                     }
+                 });
+                 window.offlineEarnings = 0;
+             });
+        }
+    }
+
+    update() {
+        player.setVelocityX(250);
+
+        if (player.body.touching.down) {
+            player.anims.play('run', true);
+            jumps = 0;
+        } else {
+            player.anims.stop();
+            player.setFrame(2);
+        }
+
+        const camX = this.cameras.main.scrollX;
+        if (this.background) {
+            this.background.tilePositionX = camX / this.background.scaleX;
+        }
+
+        monsters.children.iterate((monster) => {
+            // Optimization: Skip processing for inactive entities
+            if (!monster.active) return;
+            if (monster.body.touching.down) {
+                if (Math.random() < 0.02) {
+                    monster.setVelocityX(Phaser.Math.Between(-50, 50));
+                }
+                if (monster.body.velocity.x === 0) {
+                     monster.setVelocityX(Phaser.Math.Between(-30, 30));
+                }
+            }
+        });
+
+        // Clean up Lasers
+        lasers.children.iterate((laser) => {
+            if (!laser.active) return;
+            if (laser.x > camX + gameWidth + 100) {
+                laser.disableBody(true, true);
+            }
+        });
+
+
+        if (Phaser.Input.Keyboard.JustDown(cursors.space) || Phaser.Input.Keyboard.JustDown(cursors.up)) {
+            handleJump();
+        }
+
+        if (window.gameState.hasJetpack && (cursors.space.isDown || cursors.up.isDown) && !player.body.touching.down) {
+            player.setVelocityY(-300);
+        }
+
+        const scrollX = this.cameras.main.scrollX;
+        const rightEdge = scrollX + gameWidth;
+
+        if (nextPlatformX < rightEdge + 800) {
+            spawnNextPlatform(this);
+        }
+
+        if (player.y > lastPlatformY + 300) {
+            window.gameState.lastDeathReason = 'fall';
+            respawn(this);
+        }
+
+        const dist = Math.floor(player.x);
+        if (dist > 2000 && this.lastStoryMilestone < 2000) {
+            showStoryMessage(this, "Command Center: Signal detected. It's faint... but it's there.");
+            this.lastStoryMilestone = 2000;
+        } else if (dist > 3000 && this.lastStoryMilestone < 3000) {
+            showStoryMessage(this, "Command Center: Leaving safe zone. Terrain instability detected.");
+            this.lastStoryMilestone = 3000;
+        } else if (dist > 4500 && this.lastStoryMilestone < 4500) {
+            showStoryMessage(this, "Command Center: Energy signatures consistent with Gem proximity.");
+            this.lastStoryMilestone = 4500;
+        }
+
+        if (minimapContainer && minimapPlayer) {
+            const GOAL_X = 15000;
+            const MAP_WIDTH = 200;
+            const MAP_HEIGHT = 100;
+            const scaleX = MAP_WIDTH / GOAL_X;
+            const scaleY = MAP_HEIGHT / gameHeight;
+            let px = Phaser.Math.Clamp(player.x * scaleX, 0, MAP_WIDTH);
+            let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
+            minimapPlayer.setPosition(px, py);
+            minimapGem.setPosition(MAP_WIDTH - 5, 10);
+        }
+
+        // --- IDLE MECHANICS ---
+
+        // Exploration Tracking
+        const currentDist = Math.floor(player.x);
+        if (currentDist > (window.gameState.maxDistance || 0)) {
+            window.gameState.maxDistance = currentDist;
+            // Update Zone Text
+            if (zoneText) {
+                 const zone = 1 + Math.floor(currentDist / 2000);
+                 zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
+            }
+        }
+
+        // Drone Visual
+        if (window.gameState.hasCoinMaker) {
+             if (this.drone && !this.drone.visible) this.drone.setVisible(true);
+             if (this.drone) {
+                 this.drone.x = Phaser.Math.Interpolation.Linear([this.drone.x, player.x - 30], 0.1);
+                 this.drone.y = Phaser.Math.Interpolation.Linear([this.drone.y, player.y - 50], 0.1);
+             }
+        }
+
+        // Magnet
+        if (window.gameState.hasMagnet) {
+            const magnetRange = 300;
+            stars.children.iterate((star) => {
+                if (star.active && Phaser.Math.Distance.Between(player.x, player.y, star.x, star.y) < magnetRange) {
+                    const angle = Phaser.Math.Angle.Between(star.x, star.y, player.x, player.y);
+                    const speed = 10;
+                    star.x += Math.cos(angle) * speed;
+                    star.y += Math.sin(angle) * speed;
+                    star.refreshBody();
+                }
+            });
+            gemGroup.children.iterate((gem) => {
+                 if (gem.active && Phaser.Math.Distance.Between(player.x, player.y, gem.x, gem.y) < magnetRange) {
+                    const angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
+                    const speed = 10;
+                    gem.x += Math.cos(angle) * speed;
+                    gem.y += Math.sin(angle) * speed;
+                    gem.refreshBody();
+                }
+            });
+            loot.children.iterate((item) => {
+                 if (item.active && Phaser.Math.Distance.Between(player.x, player.y, item.x, item.y) < magnetRange) {
+                    const angle = Phaser.Math.Angle.Between(item.x, item.y, player.x, player.y);
+                    const speed = 12; // Loot is lighter?
+                    item.setVelocityX(Math.cos(angle) * 400); // Dynamic body uses velocity
+                    item.setVelocityY(Math.sin(angle) * 400);
+                }
+            });
+        }
+
+        // Auto-Jump
+        if (window.gameState.hasAutoJump && player.body.touching.down) {
+            const checkX = player.x + 100;
+            const checkY = player.y + 48;
+            let groundFound = false;
+            platforms.children.iterate((plat) => {
+                if (Math.abs(plat.x - checkX) < (plat.displayWidth / 2 + 10) && Math.abs(plat.y - checkY) < 50) {
+                    groundFound = true;
+                }
+            });
+            if (!groundFound) {
+                handleJump();
+            }
+        }
+
+        // Auto-Attack
+        if (window.gameState.hasAutoAttack) {
+            const now = this.time.now;
+            if (!this.lastAutoAttackTime || now - this.lastAutoAttackTime > 1000) {
+                let target = null;
+                let minDist = 400;
+                monsters.children.iterate((monster) => {
+                    if (monster.active) {
+                        const d = Phaser.Math.Distance.Between(player.x, player.y, monster.x, monster.y);
+                        if (d < minDist && monster.x > player.x) {
+                            minDist = d;
+                            target = monster;
+                        }
+                    }
+                });
+
+                if (target) {
+                    if (window.gameState.hasLaser) {
+                        handleLaser(this);
+                        this.lastAutoAttackTime = now;
+                    } else if (window.gameState.hasSword && minDist < 100) {
+                        handleSword(this);
+                        this.lastAutoAttackTime = now;
+                    }
+                }
+            }
+        }
+
+        // Optimization: Throttle cleanup to run every 500ms instead of every frame
+        // This reduces the overhead of iterating through all entities to check bounds
+        if (this.time.now - this.lastCleanupTime > 500) {
+            cleanup(this);
+            this.lastCleanupTime = this.time.now;
+        }
+
+        // Idle Spawning (Horde Mode)
+        if (this.time.now - this.lastIdleSpawnTime > 5000) { // Every 5 seconds try to spawn
+            attemptIdleSpawn(this);
+            this.lastIdleSpawnTime = this.time.now;
+        }
+    }
+}
+
+
+const config = {
+    type: Phaser.AUTO,
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        width: '100%',
+        height: '100%'
+    },
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 800 },
+            debug: false
+        }
+    },
+    render: {
+        roundPixels: true
+    },
+    scene: [StartScene, GameScene, UpgradeScene]
+};
+
+const game = new Phaser.Game(config);
+window.game = game;

@@ -5,6 +5,9 @@ test('Settings menu opens and pauses game, story text is correct', async ({ page
   page.on('pageerror', err => console.log('PAGE ERROR:', err.message));
 
   await page.goto('http://localhost:3000');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
   // Wait for canvas
   await page.waitForSelector('canvas');
@@ -14,7 +17,7 @@ test('Settings menu opens and pauses game, story text is correct', async ({ page
 
   // Check story text
   const storyText = await page.evaluate(() => {
-     const scene = window.game.scene.scenes[0];
+     const scene = window.game.scene.getScene('GameScene');
      const textObj = scene.children.list.find(c => c.type === 'Text' && c.text && c.text.includes('Command Center'));
      return textObj ? textObj.text : '';
   });
@@ -28,13 +31,13 @@ test('Settings menu opens and pauses game, story text is correct', async ({ page
 
   // Verify Paused
   const isPaused = await page.evaluate(() => {
-      return window.game.scene.scenes[0].physics.world.isPaused;
+      return window.game.scene.getScene('GameScene').physics.world.isPaused;
   });
   expect(isPaused).toBe(true);
 
   // Debug button pos
   const btnPos = await page.evaluate(() => {
-      const scene = window.game.scene.scenes[0];
+      const scene = window.game.scene.getScene('GameScene');
       const btn = scene.children.list.find(c => c.name === 'resumeBtn');
       return { x: btn.x, y: btn.y };
   });
@@ -51,7 +54,7 @@ test('Settings menu opens and pauses game, story text is correct', async ({ page
 
   // Verify Resumed
   const isPausedAfter = await page.evaluate(() => {
-      return window.game.scene.scenes[0].physics.world.isPaused;
+      return window.game.scene.getScene('GameScene').physics.world.isPaused;
   });
   expect(isPausedAfter).toBe(false);
 });

@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 test('Upgrade Tree has 4 categories and new items', async ({ page }) => {
     await page.goto('http://localhost:3000');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
     await page.waitForTimeout(2000); // Wait for game load
 
     // Open Upgrade Scene (Simulate 'B' key)
@@ -25,6 +28,9 @@ test('Upgrade Tree has 4 categories and new items', async ({ page }) => {
 
 test('Sword mechanic works', async ({ page }) => {
     await page.goto('http://localhost:3000');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
     await page.waitForTimeout(2000);
 
     // Cheat: Give sword
@@ -43,7 +49,7 @@ test('Sword mechanic works', async ({ page }) => {
     // This creates a scene with key 'default' usually.
 
     await page.evaluate(() => {
-        const scene = window.game.scene.scenes[0]; // Active scene
+        const scene = window.game.scene.getScene('GameScene'); // Active scene
         // We need to find the player and monsters group.
         // They are variables in the closure of create/update.
         // They are NOT properties of the scene object (this.player) unless explicitly assigned.
@@ -72,10 +78,13 @@ test('Sword mechanic works', async ({ page }) => {
 
 test('Clouds are present', async ({ page }) => {
     await page.goto('http://localhost:3000');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
     await page.waitForTimeout(2000);
 
     const cloudCount = await page.evaluate(() => {
-        const scene = window.game.scene.scenes[0];
+        const scene = window.game.scene.getScene('GameScene');
         // clouds is a global var in game.js scope, but scene.clouds is NOT automatically set.
         // BUT in game.js: `clouds = this.add.group();`
         // Wait, `clouds` is a top level variable.
