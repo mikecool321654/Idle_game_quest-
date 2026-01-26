@@ -1,7 +1,12 @@
 const { test, expect } = require('@playwright/test');
 
 test('Game loads and player stays on platform (no early cleanup)', async ({ page }) => {
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+  page.on('pageerror', err => console.log('PAGE ERROR:', err.toString()));
   await page.goto('/');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
   // Wait for canvas
   await expect(page.locator('canvas')).toBeVisible();

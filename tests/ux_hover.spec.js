@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 test('Upgrade Scene description works on hover', async ({ page }) => {
   await page.goto('/');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
   // Wait for game load
   await page.waitForSelector('canvas');

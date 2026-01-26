@@ -4,6 +4,9 @@ test.describe('Responsiveness and Visibility', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
     // Wait for Phaser to initialize
     await page.waitForFunction(() => window.game && window.game.isBooted);
   });
@@ -16,7 +19,7 @@ test.describe('Responsiveness and Visibility', () => {
     await page.waitForTimeout(1000);
 
     const visibility = await page.evaluate(() => {
-      const scene = window.game.scene.scenes[0];
+      const scene = window.game.scene.getScene('GameScene');
       const camera = scene.cameras.main;
       const player = scene.children.list.find(c => c.texture && c.texture.key === 'dude_run'); // Finding player by texture
 
@@ -55,7 +58,7 @@ test.describe('Responsiveness and Visibility', () => {
     await page.waitForTimeout(3000);
 
     const check = await page.evaluate(() => {
-      const scene = window.game.scene.scenes[0];
+      const scene = window.game.scene.getScene('GameScene');
       const camera = scene.cameras.main;
       const player = scene.children.list.find(c => c.texture && c.texture.key === 'dude_run');
 

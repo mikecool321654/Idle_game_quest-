@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 test('Check object pooling behavior', async ({ page }) => {
   await page.goto('/');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
   await page.waitForTimeout(1000);
 
   // Teleport player to 6000 to trigger monster generation
@@ -13,7 +16,7 @@ test('Check object pooling behavior', async ({ page }) => {
 
     // Manually update camera scroll to trigger generation logic immediately
     // The game logic relies on camera.scrollX to decide when to spawn
-    const scene = window.game.scene.scenes[0];
+    const scene = window.game.scene.getScene('GameScene');
     scene.cameras.main.stopFollow();
     scene.cameras.main.scrollX = player.x - 200;
   });

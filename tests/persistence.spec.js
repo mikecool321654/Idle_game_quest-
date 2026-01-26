@@ -4,6 +4,9 @@ test.describe('Persistence and Offline Progress', () => {
 
   test('should save game state to localStorage', async ({ page }) => {
     await page.goto('/');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
     await page.waitForTimeout(1000); // Wait for init
 
     // Simulate gaining coins
@@ -25,6 +28,9 @@ test.describe('Persistence and Offline Progress', () => {
   test('should load game state from localStorage', async ({ page }) => {
     // Navigate first to set up storage
     await page.goto('/');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
     // Set storage
     await page.evaluate(() => {
@@ -47,6 +53,9 @@ test.describe('Persistence and Offline Progress', () => {
 
   test('should calculate offline earnings', async ({ page }) => {
     await page.goto('/');
+    await page.waitForFunction(() => window.forceStartGame);
+    await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
     // Set storage with old timestamp (1 hour ago) and Coin Maker
     const ONE_HOUR_MS = 3600 * 1000;

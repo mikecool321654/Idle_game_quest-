@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 test('Escape key should toggle settings and close upgrade menu', async ({ page }) => {
   await page.goto('http://127.0.0.1:3000');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
   // Wait for game to load
   await page.waitForTimeout(1000);
@@ -9,7 +12,7 @@ test('Escape key should toggle settings and close upgrade menu', async ({ page }
   // 1. Test Toggle Settings in Game
   // Initial state: Settings hidden
   let settingsVisible = await page.evaluate(() => {
-    return window.game.scene.keys.default.children.getByName('resumeBtn')?.visible;
+    return window.game.scene.getScene('GameScene').children.getByName('resumeBtn')?.visible;
   });
   expect(settingsVisible).toBeFalsy();
 
@@ -19,7 +22,7 @@ test('Escape key should toggle settings and close upgrade menu', async ({ page }
 
   // Check if Settings visible
   settingsVisible = await page.evaluate(() => {
-    return window.game.scene.keys.default.children.getByName('resumeBtn').visible;
+    return window.game.scene.getScene('GameScene').children.getByName('resumeBtn').visible;
   });
   expect(settingsVisible).toBeTruthy();
 
@@ -28,7 +31,7 @@ test('Escape key should toggle settings and close upgrade menu', async ({ page }
   await page.waitForTimeout(500);
 
   settingsVisible = await page.evaluate(() => {
-    return window.game.scene.keys.default.children.getByName('resumeBtn').visible;
+    return window.game.scene.getScene('GameScene').children.getByName('resumeBtn').visible;
   });
   expect(settingsVisible).toBeFalsy();
 
@@ -56,7 +59,7 @@ test('Escape key should toggle settings and close upgrade menu', async ({ page }
 
   // 3. Verify Settings Menu did NOT open (Race condition check)
   settingsVisible = await page.evaluate(() => {
-    return window.game.scene.keys.default.children.getByName('resumeBtn')?.visible;
+    return window.game.scene.getScene('GameScene').children.getByName('resumeBtn')?.visible;
   });
   expect(settingsVisible).toBeFalsy();
 });

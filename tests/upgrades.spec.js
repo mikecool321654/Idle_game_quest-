@@ -2,6 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 test('Upgrade Scene opens and logic works', async ({ page }) => {
   await page.goto('/');
+  await page.waitForFunction(() => window.forceStartGame);
+  await page.evaluate(() => window.forceStartGame());
+    await page.waitForFunction(() => typeof player !== 'undefined' && player);
 
   // Wait for game load
   await page.waitForSelector('canvas');
