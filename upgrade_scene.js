@@ -94,21 +94,20 @@ class UpgradeScene extends Phaser.Scene {
 
     drawLines() {
         const graphics = this.add.graphics();
-        graphics.lineStyle(4, 0x008800); // Cyberpunk Green
 
         this.nodes.forEach(node => {
             if (node.parent) {
                 const parent = this.nodes.find(n => n.id === node.parent);
                 if (!parent) return;
 
-                // Visibility Check
-                // Node is visible if parent is visible and owned.
-                // Actually here we just draw lines between nodes that are theoretically connected?
-                // Or only revealed ones?
-                // Let's stick to Fog of War logic: Line is visible if parent is owned.
-
                 let parentOwned = !parent.var || window.gameState[parent.var];
-                if (!parentOwned) return;
+                if (parent.var === 'coinMakerLevel' && window.gameState.coinMakerLevel < 2) parentOwned = false;
+
+                if (parentOwned) {
+                    graphics.lineStyle(4, 0x008800); // Active Line
+                } else {
+                    graphics.lineStyle(2, 0x333333); // Ghost Line
+                }
 
                 graphics.lineBetween(this.centerX + node.x, this.centerY + node.y, this.centerX + parent.x, this.centerY + parent.y);
             }
@@ -122,20 +121,8 @@ class UpgradeScene extends Phaser.Scene {
             const x = this.centerX + node.x;
             const y = this.centerY + node.y;
 
-            // Visibility Check
-            // Node is visible if it is a root (no parent or core) OR parent is owned.
-            let isVisible = false;
-            if (!node.parent || node.id === 'core') isVisible = true;
-            else {
-                const parent = this.nodes.find(n => n.id === node.parent);
-                let parentOwned = !parent.var || window.gameState[parent.var];
-                if (parentOwned) isVisible = true;
-            }
-
-            if (!isVisible) return;
-
             // Determine state
-            let state = 'locked';
+            let state = 'ghost';
             let isOwned = !node.var || window.gameState[node.var];
 
             // Special handling for Level based var (Coin Factory)
@@ -161,30 +148,33 @@ class UpgradeScene extends Phaser.Scene {
             if (isOwned) {
                 state = 'owned';
             } else {
-                // Check parent (already checked for visibility, but double check logic)
                 let parentOwned = true;
                 if (node.parent) {
                     const parent = this.nodes.find(n => n.id === node.parent);
                     parentOwned = !parent.var || window.gameState[parent.var];
-                    if (parent.var === 'coinMakerLevel' && window.gameState.coinMakerLevel < 2) parentOwned = false; // logic for future levels
+                    if (parent.var === 'coinMakerLevel' && window.gameState.coinMakerLevel < 2) parentOwned = false;
                 }
 
                 if (parentOwned) {
                     if (window.gameState.coins >= node.cost) {
                         state = 'available';
                     } else {
-                        state = 'poor'; // Unlocked but cant afford
+                        state = 'poor';
                     }
+                } else {
+                    state = 'ghost';
                 }
             }
 
             // Colors
             let color = 0x555555;
             let strokeColor = 0xffffff;
+            let alpha = 1;
 
-            if (state === 'owned') { color = 0x39FF14; strokeColor = 0x000000; } // Neon Green
-            if (state === 'available') { color = 0x00FFFF; strokeColor = 0xffffff; } // Cyan
-            if (state === 'poor') { color = 0xFFA500; strokeColor = 0xff0000; } // Orange
+            if (state === 'owned') { color = 0x39FF14; strokeColor = 0x000000; }
+            if (state === 'available') { color = 0x00FFFF; strokeColor = 0xffffff; }
+            if (state === 'poor') { color = 0xFFA500; strokeColor = 0xff0000; }
+            if (state === 'ghost') { color = 0x333333; strokeColor = 0x555555; alpha = 0.5; }
 
             // Glow
             if (state === 'owned' || state === 'available') {
@@ -192,14 +182,16 @@ class UpgradeScene extends Phaser.Scene {
             }
 
             // Shape
-            const circle = this.add.circle(x, y, 40, color);
+            const circle = this.add.circle(x, y, 40, color).setAlpha(alpha);
             circle.setStrokeStyle(3, strokeColor);
 
             // Interaction
-            // Hover logic for all visible nodes
+            // Hover logic for all nodes (Tease the power!)
             circle.setInteractive({ useHandCursor: state === 'available' })
                 .on('pointerover', () => {
-                    this.descriptionText.setText(node.description);
+                    let desc = node.description;
+                    if (state === 'ghost') desc = "(LOCKED) " + desc;
+                    this.descriptionText.setText(desc);
                     if (state === 'available' || state === 'owned') circle.setStrokeStyle(5, strokeColor);
                 })
                 .on('pointerout', () => {
