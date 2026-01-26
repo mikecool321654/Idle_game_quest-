@@ -30,6 +30,7 @@ let stars;
 let spikes;
 let monsters;
 let lasers; // New Group
+let loot; // New Group for dynamic drops
 let cursors;
 let keyZ, keyX; // New Keys
 let nextPlatformX = 0;
@@ -125,6 +126,7 @@ let scoreText;
 let robotText;
 let shopText;
 let storyText;
+let zoneText;
 let gemGroup;
 let settingsContainer;
 let minimapContainer;
@@ -375,6 +377,7 @@ function create() {
     spikes = this.physics.add.staticGroup();
     monsters = this.physics.add.group();
     lasers = this.physics.add.group(); // New
+    loot = this.physics.add.group(); // New Loot Group
     gemGroup = this.physics.add.staticGroup();
 
     // Initial Setup
@@ -399,10 +402,18 @@ function create() {
                 // Idle Income with Exploration Bonus
                 let amount = 1;
                 const dist = window.gameState.maxDistance || 0;
-                const multiplier = 1 + (dist / 2000);
+                const multiplier = 1 + Math.floor(dist / 2000);
                 amount = Math.floor(amount * multiplier);
+                amount = Math.max(1, amount);
 
-                window.gameState.coins += Math.max(1, amount);
+                // No visual pop-up for passive tick to avoid clutter?
+                // "Idle must be seen". Let's show it occasionally or smaller?
+                // Or just show it on the drone.
+                if (this.drone && this.drone.visible) {
+                    showFloatingText(this, this.drone.x, this.drone.y - 20, "+" + amount, '#00ffff');
+                }
+
+                window.gameState.coins += amount;
                 if (scoreText) scoreText.setText(window.gameState.coins);
                 updateShopUI();
             },
@@ -415,12 +426,15 @@ function create() {
         delay: 120000, // 2 minutes
         callback: () => {
              const dist = window.gameState.maxDistance || 0;
-             const bonus = 1 + (dist / 2000);
+             const bonus = 1 + Math.floor(dist / 2000);
              const reward = Math.floor(50 * bonus);
              window.gameState.coins += reward;
              if (scoreText) scoreText.setText(window.gameState.coins);
              showStoryMessage(this, "Command Center: Supply Drop received. +" + reward + " coins.");
              updateShopUI();
+
+             // Visual
+             showFloatingText(this, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
         },
         loop: true
     });
@@ -459,8 +473,10 @@ function create() {
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(player, spikes, hitSpike, null, this);
     this.physics.add.collider(monsters, platforms);
+    this.physics.add.collider(loot, platforms); // Loot bounces on ground
     this.physics.add.overlap(player, monsters, hitMonster, null, this); // Changed callback
     this.physics.add.overlap(player, stars, collectStar, null, this);
+    this.physics.add.overlap(player, loot, collectLoot, null, this); // Collect Loot
     this.physics.add.overlap(player, gemGroup, collectGem, null, this);
     this.physics.add.overlap(lasers, monsters, laserHitMonster, null, this); // Laser collision
 
@@ -492,10 +508,19 @@ function create() {
     // UI Setup
     createUI(this);
 
+    // Update Zone Text immediately
+    if (zoneText) {
+         const dist = window.gameState.maxDistance || 0;
+         const zone = 1 + Math.floor(dist / 2000);
+         zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
+    }
+
     // Expose for debugging/testing
     this.monsters = monsters;
     this.player = player;
     this.clouds = clouds;
+
+    this.lastIdleSpawnTime = 0;
 
     // Auto-save every 10 seconds
     this.time.addEvent({
@@ -537,6 +562,8 @@ function createUI(scene) {
     scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
 
     robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
+
+    zoneText = scene.add.text(16, 90, 'ZONE 1\n(x1)', { fontSize: '20px', fill: '#ffff00', fontFamily: 'Courier' }).setScrollFactor(0);
 
     shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
         .setOrigin(1, 0)
@@ -725,7 +752,15 @@ function update() {
     // --- IDLE MECHANICS ---
 
     // Exploration Tracking
-    window.gameState.maxDistance = Math.max(window.gameState.maxDistance || 0, Math.floor(player.x));
+    const currentDist = Math.floor(player.x);
+    if (currentDist > (window.gameState.maxDistance || 0)) {
+        window.gameState.maxDistance = currentDist;
+        // Update Zone Text
+        if (zoneText) {
+             const zone = 1 + Math.floor(currentDist / 2000);
+             zoneText.setText("ZONE " + zone + "\n(x" + zone + ")");
+        }
+    }
 
     // Drone Visual
     if (window.gameState.hasCoinMaker) {
@@ -755,6 +790,14 @@ function update() {
                 gem.x += Math.cos(angle) * speed;
                 gem.y += Math.sin(angle) * speed;
                 gem.refreshBody();
+            }
+        });
+        loot.children.iterate((item) => {
+             if (item.active && Phaser.Math.Distance.Between(player.x, player.y, item.x, item.y) < magnetRange) {
+                const angle = Phaser.Math.Angle.Between(item.x, item.y, player.x, player.y);
+                const speed = 12; // Loot is lighter?
+                item.setVelocityX(Math.cos(angle) * 400); // Dynamic body uses velocity
+                item.setVelocityY(Math.sin(angle) * 400);
             }
         });
     }
@@ -808,6 +851,58 @@ function update() {
         cleanup(this);
         this.lastCleanupTime = this.time.now;
     }
+
+    // Idle Spawning (Horde Mode)
+    if (this.time.now - this.lastIdleSpawnTime > 5000) { // Every 5 seconds try to spawn
+        attemptIdleSpawn(this);
+        this.lastIdleSpawnTime = this.time.now;
+    }
+}
+
+function attemptIdleSpawn(scene) {
+    // Only spawn if player is alive and we aren't overwhelmed
+    if (!player.active || monsters.countActive() > 10) return;
+
+    const camX = scene.cameras.main.scrollX;
+    const gameW = scene.scale.width;
+
+    // Find valid platforms
+    const validPlatforms = [];
+    platforms.children.iterate((plat) => {
+        // Platform must be on screen
+        if (plat.x > camX && plat.x < camX + gameW) {
+             // Must be far enough from player
+             if (Math.abs(plat.x - player.x) > 300) {
+                 validPlatforms.push(plat);
+             }
+        }
+    });
+
+    if (validPlatforms.length > 0) {
+        const plat = Phaser.Utils.Array.GetRandom(validPlatforms);
+        const spawnX = plat.x + Phaser.Math.Between(-plat.displayWidth/4, plat.displayWidth/4);
+
+        // Check if position is occupied? (Simplified: just spawn)
+        let monster = monsters.get(spawnX, plat.y - 100, 'monster');
+        if (monster) {
+             monster.setActive(true);
+             monster.setVisible(true);
+             monster.enableBody(true, spawnX, plat.y - 100, true, true);
+             monster.setBounce(1);
+             monster.setCollideWorldBounds(false);
+             monster.setVelocityX(Phaser.Math.Between(-40, 40));
+
+             // Visual Cue
+             const warning = scene.add.text(spawnX, plat.y - 150, '!', { fontSize: '32px', fill: '#f00' }).setOrigin(0.5);
+             scene.tweens.add({
+                 targets: warning,
+                 y: plat.y - 180,
+                 alpha: 0,
+                 duration: 1000,
+                 onComplete: () => warning.destroy()
+             });
+        }
+    }
 }
 
 function cleanup(scene) {
@@ -834,6 +929,14 @@ function cleanup(scene) {
         if (child.active) {
             if (child.x < cleanupThreshold) child.disableBody(true, true);
             else if (child.y > gameHeight + 100) child.disableBody(true, true);
+        }
+    }
+    const lChildren = loot.getChildren();
+    for (let i = lChildren.length - 1; i >= 0; i--) {
+        const child = lChildren[i];
+        if (child.active) {
+            if (child.x < cleanupThreshold) child.destroy();
+            else if (child.y > gameHeight + 100) child.destroy();
         }
     }
 }
@@ -870,6 +973,7 @@ function handleSword(scene) {
         const dy = Math.abs(monster.y - player.y);
         if (dx > 0 && dx < 80 && dy < 50) {
              monster.disableBody(true, true);
+             spawnLoot(scene, monster.x, monster.y);
         }
     });
 }
@@ -889,6 +993,7 @@ function handleLaser(scene) {
 function laserHitMonster(laser, monster) {
     laser.disableBody(true, true);
     monster.disableBody(true, true);
+    spawnLoot(laser.scene, monster.x, monster.y);
     showStoryMessage(laser.scene, "Command Center: Target neutralized.");
 }
 
@@ -1046,9 +1151,48 @@ function hitMonster(player, monster) {
 
 function collectStar(player, star) {
     star.disableBody(true, true);
-    window.gameState.coins += 1;
+    gainCoins(player.scene, 1, star.x, star.y);
+}
+
+function collectLoot(player, item) {
+    item.destroy();
+    gainCoins(player.scene, 5, item.x, item.y); // Monsters drop more valuble loot? Or just 1? Let's say 1-3.
+}
+
+function gainCoins(scene, amount, x, y) {
+    window.gameState.coins += amount;
     scoreText.setText(window.gameState.coins);
     updateShopUI();
+    showFloatingText(scene, x, y, "+" + amount, '#ffd700');
+}
+
+function spawnLoot(scene, x, y) {
+    const item = loot.create(x, y, 'star');
+    if (item) {
+        item.setBounce(0.5);
+        item.setDrag(100);
+        item.setVelocity(Phaser.Math.Between(-200, 200), -300);
+    }
+}
+
+function showFloatingText(scene, x, y, message, color) {
+    const text = scene.add.text(x, y, message, {
+        fontSize: '24px',
+        fontFamily: 'Courier',
+        fontWeight: 'bold',
+        fill: color,
+        stroke: '#000',
+        strokeThickness: 4
+    }).setOrigin(0.5);
+
+    scene.tweens.add({
+        targets: text,
+        y: y - 50,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power1',
+        onComplete: () => text.destroy()
+    });
 }
 
 function collectGem(player, gem) {
