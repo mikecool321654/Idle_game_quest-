@@ -82,14 +82,10 @@ class UpgradeScene extends Phaser.Scene {
         // Set timestamp to prevent race condition with Game scene
         window.lastUpgradeCloseTime = Date.now();
 
-        // Try to find the default scene
-        let mainScene = this.scene.get('default');
-        if (!mainScene || !mainScene.sys.settings.active) {
-             mainScene = this.scene.manager.getScenes(false).find(s => s.sys.settings.key !== 'UpgradeScene');
-        }
-
-        if (mainScene) {
-            if (mainScene.physics) mainScene.physics.resume();
+        // Resume GameScene
+        let mainScene = this.scene.get('GameScene');
+        if (mainScene && mainScene.physics) {
+            mainScene.physics.resume();
         }
         this.scene.stop();
     }
