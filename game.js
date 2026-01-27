@@ -164,6 +164,64 @@ function attemptIdleSpawn(scene) {
     }
 }
 
+function handleMagnet(scene) {
+    if (!window.gameState.hasMagnet) return;
+
+    const range = 300;
+    const rangeSq = range * range;
+    const playerX = player.x;
+    const playerY = player.y;
+
+    // Helper for static items (Stars, Gems)
+    const pullStatic = (item) => {
+        if (!item.active) return;
+        const dx = playerX - item.x;
+        const dy = playerY - item.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < rangeSq && distSq > 0.1) {
+            const dist = Math.sqrt(distSq);
+            // Speed = 10 per frame
+            const speed = 10;
+            const factor = speed / dist;
+            item.x += dx * factor;
+            item.y += dy * factor;
+            item.refreshBody();
+        }
+    };
+
+    // Helper for dynamic items (Loot)
+    const pullDynamic = (item) => {
+        if (!item.active) return;
+        const dx = playerX - item.x;
+        const dy = playerY - item.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq < rangeSq && distSq > 0.1) {
+            const dist = Math.sqrt(distSq);
+            // Speed logic: (dx/dist) * 400
+            const factor = 400 / dist;
+            item.setVelocityX(dx * factor);
+            item.setVelocityY(dy * factor);
+        }
+    };
+
+    const sChildren = stars.getChildren();
+    for (let i = 0, l = sChildren.length; i < l; i++) {
+        pullStatic(sChildren[i]);
+    }
+
+    const gChildren = gemGroup.getChildren();
+    for (let i = 0, l = gChildren.length; i < l; i++) {
+        pullStatic(gChildren[i]);
+    }
+
+    const lChildren = loot.getChildren();
+    for (let i = 0, l = lChildren.length; i < l; i++) {
+        pullDynamic(lChildren[i]);
+    }
+}
+
 function cleanup(scene) {
     const scrollX = scene.cameras.main.scrollX;
     const cleanupThreshold = scrollX - 200;
@@ -1234,35 +1292,7 @@ class GameScene extends Phaser.Scene {
         }
 
         // Magnet
-        if (window.gameState.hasMagnet) {
-            const magnetRange = 300;
-            stars.children.iterate((star) => {
-                if (star.active && Phaser.Math.Distance.Between(player.x, player.y, star.x, star.y) < magnetRange) {
-                    const angle = Phaser.Math.Angle.Between(star.x, star.y, player.x, player.y);
-                    const speed = 10;
-                    star.x += Math.cos(angle) * speed;
-                    star.y += Math.sin(angle) * speed;
-                    star.refreshBody();
-                }
-            });
-            gemGroup.children.iterate((gem) => {
-                 if (gem.active && Phaser.Math.Distance.Between(player.x, player.y, gem.x, gem.y) < magnetRange) {
-                    const angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
-                    const speed = 10;
-                    gem.x += Math.cos(angle) * speed;
-                    gem.y += Math.sin(angle) * speed;
-                    gem.refreshBody();
-                }
-            });
-            loot.children.iterate((item) => {
-                 if (item.active && Phaser.Math.Distance.Between(player.x, player.y, item.x, item.y) < magnetRange) {
-                    const angle = Phaser.Math.Angle.Between(item.x, item.y, player.x, player.y);
-                    const speed = 12; // Loot is lighter?
-                    item.setVelocityX(Math.cos(angle) * 400); // Dynamic body uses velocity
-                    item.setVelocityY(Math.sin(angle) * 400);
-                }
-            });
-        }
+        handleMagnet(this);
 
         // Auto-Jump
         if (window.gameState.hasAutoJump && player.body.touching.down) {
