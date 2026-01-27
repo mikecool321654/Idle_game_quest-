@@ -83,6 +83,14 @@ function loadGame() {
                 if (rate > 0) {
                     const earned = Math.floor(diffSeconds * rate);
                     window.gameState.coins += earned;
+
+                    window.offlineDetails = {
+                        earned: earned,
+                        base: base,
+                        multiplier: multiplier,
+                        seconds: Math.floor(diffSeconds)
+                    };
+
                     return earned;
                 }
             }
@@ -120,7 +128,7 @@ let minimapGem;
 
 function attemptIdleSpawn(scene) {
     // Only spawn if player is alive and we aren't overwhelmed
-    if (!player.active || monsters.countActive() > 10) return;
+    if (!player.active || monsters.countActive() > 15) return;
 
     const camX = scene.cameras.main.scrollX;
     const gameW = scene.scale.width;
@@ -137,16 +145,51 @@ function attemptIdleSpawn(scene) {
         }
     });
 
-    if (validPlatforms.length > 0) {
+    // Decide what to spawn: Ground or Air?
+    // If no platforms, MUST spawn Air.
+    // Otherwise, 30% chance for Air.
+    let spawnAir = false;
+    if (validPlatforms.length === 0 || Phaser.Math.Between(0, 100) < 30) {
+        spawnAir = true;
+    }
+
+    if (spawnAir) {
+         // Spawn Flying Bat
+         const spawnX = player.x + (Math.random() > 0.5 ? 400 : -400); // Behind or ahead
+         const spawnY = player.y - Phaser.Math.Between(150, 300);
+
+         let bat = monsters.get(spawnX, spawnY, 'bat');
+         if (bat) {
+             bat.setActive(true);
+             bat.setVisible(true);
+             bat.enableBody(true, spawnX, spawnY, true, true);
+             bat.body.allowGravity = false;
+
+             // Fly towards player
+             const angle = Phaser.Math.Angle.Between(spawnX, spawnY, player.x, player.y);
+             scene.physics.velocityFromRotation(angle, 150, bat.body.velocity);
+
+             bat.setCollideWorldBounds(false);
+
+             // Visual Cue
+             const warning = scene.add.text(spawnX, spawnY - 50, '!', { fontSize: '32px', fill: '#f0f' }).setOrigin(0.5);
+             scene.tweens.add({
+                 targets: warning,
+                 alpha: 0,
+                 duration: 1000,
+                 onComplete: () => warning.destroy()
+             });
+         }
+    } else {
         const plat = Phaser.Utils.Array.GetRandom(validPlatforms);
         const spawnX = plat.x + Phaser.Math.Between(-plat.displayWidth/4, plat.displayWidth/4);
 
-        // Check if position is occupied? (Simplified: just spawn)
         let monster = monsters.get(spawnX, plat.y - 100, 'monster');
         if (monster) {
              monster.setActive(true);
              monster.setVisible(true);
              monster.enableBody(true, spawnX, plat.y - 100, true, true);
+             monster.body.allowGravity = true; // Reset gravity in case it was a bat
              monster.setBounce(1);
              monster.setCollideWorldBounds(false);
              monster.setVelocityX(Phaser.Math.Between(-40, 40));
@@ -233,6 +276,7 @@ function handleSword(scene) {
         if (dx > 0 && dx < 80 && dy < 50) {
              monster.disableBody(true, true);
              spawnLoot(scene, monster.x, monster.y);
+             window.gameState.lastKillTime = Date.now();
         }
     });
 }
@@ -253,6 +297,7 @@ function laserHitMonster(laser, monster) {
     laser.disableBody(true, true);
     monster.disableBody(true, true);
     spawnLoot(laser.scene, monster.x, monster.y);
+    window.gameState.lastKillTime = Date.now();
     showStoryMessage(laser.scene, "Command Center: Target neutralized.");
 }
 
@@ -369,6 +414,7 @@ function spawnNextPlatform(scene) {
              monster.setActive(true);
              monster.setVisible(true);
              monster.enableBody(true, mx, y - 50, true, true);
+             monster.body.allowGravity = true; // Reset gravity
              monster.setBounce(1);
              monster.setCollideWorldBounds(false);
              monster.setVelocityX(Phaser.Math.Between(-40, 40));
@@ -432,6 +478,32 @@ function spawnLoot(scene, x, y) {
         item.setDrag(100);
         item.setVelocity(Phaser.Math.Between(-200, 200), -300);
     }
+}
+
+function spawnSupplyCrate(scene) {
+    if (!player.active) return;
+    const x = player.x;
+    const y = player.y - 400; // Drop from above
+    const crate = scene.crates.get(x, y, 'crate');
+    if (crate) {
+        crate.setActive(true);
+        crate.setVisible(true);
+        crate.enableBody(true, x, y, true, true);
+        crate.setBounce(0.3);
+        crate.setDrag(100);
+        showStoryMessage(scene, "Command Center: Supply Drop incoming.");
+    }
+}
+
+function collectCrate(player, crate) {
+    crate.disableBody(true, true);
+    const dist = window.gameState.maxDistance || 0;
+    const bonus = 1 + Math.floor(dist / 2000);
+    const reward = Math.floor(50 * bonus);
+
+    gainCoins(player.scene, reward, player.x, player.y - 50);
+    showStoryMessage(player.scene, "Command Center: Supplies secured.");
+    showFloatingText(player.scene, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
 }
 
 function showFloatingText(scene, x, y, message, color) {
@@ -921,6 +993,39 @@ class GameScene extends Phaser.Scene {
             graphics.clear();
         }
 
+        // Crate (Supply Drop)
+        if (!this.textures.exists('crate')) {
+            graphics.fillStyle(0x8B4513, 1); // SaddleBrown
+            graphics.fillRect(0, 0, 32, 32);
+            graphics.lineStyle(2, 0xD2691E, 1); // Lighter brown border
+            graphics.strokeRect(0, 0, 32, 32);
+            graphics.beginPath();
+            graphics.moveTo(0, 0); graphics.lineTo(32, 32);
+            graphics.moveTo(32, 0); graphics.lineTo(0, 32);
+            graphics.strokePath();
+            graphics.generateTexture('crate', 32, 32);
+            graphics.clear();
+        }
+
+        // Bat (Flying Enemy)
+        if (!this.textures.exists('bat')) {
+            graphics.fillStyle(0x4B0082, 1); // Indigo
+            graphics.beginPath();
+            graphics.moveTo(16, 24); // Body Center Bottom
+            graphics.lineTo(0, 0); // Left Wing Tip
+            graphics.lineTo(16, 16); // Neck
+            graphics.lineTo(32, 0); // Right Wing Tip
+            graphics.lineTo(16, 24); // Back to Body
+            graphics.closePath();
+            graphics.fillPath();
+            // Eyes
+            graphics.fillStyle(0xff0000, 1);
+            graphics.fillCircle(14, 18, 2);
+            graphics.fillCircle(18, 18, 2);
+            graphics.generateTexture('bat', 32, 32);
+            graphics.clear();
+        }
+
         graphics.destroy();
         // -------------------------
 
@@ -950,6 +1055,7 @@ class GameScene extends Phaser.Scene {
         monsters = this.physics.add.group();
         lasers = this.physics.add.group(); // New
         loot = this.physics.add.group(); // New Loot Group
+        this.crates = this.physics.add.group(); // Supply Drops
         gemGroup = this.physics.add.staticGroup();
 
         // Initial Setup
@@ -976,13 +1082,28 @@ class GameScene extends Phaser.Scene {
                     const dist = window.gameState.maxDistance || 0;
                     const multiplier = 1 + Math.floor(dist / 2000);
                     amount = Math.floor(amount * multiplier);
+
+                    // Synergy: Blood Money (Auto-Attack/Kills boost idle income)
+                    // If killed something in last 5 seconds, double the income
+                    if (window.gameState.lastKillTime && Date.now() - window.gameState.lastKillTime < 5000) {
+                        amount *= 2;
+                        if (this.drone && this.drone.visible) {
+                             this.drone.setTint(0xff0000); // Angry drone
+                             this.time.delayedCall(500, () => this.drone.clearTint());
+                        }
+                    }
+
                     amount = Math.max(1, amount);
 
-                    // No visual pop-up for passive tick to avoid clutter?
-                    // "Idle must be seen". Let's show it occasionally or smaller?
-                    // Or just show it on the drone.
+                    // Visual: Drone Laser
                     if (this.drone && this.drone.visible) {
                         showFloatingText(this, this.drone.x, this.drone.y - 20, "+" + amount, '#00ffff');
+
+                        // Shoot laser at ground/player
+                        const g = this.add.graphics();
+                        g.lineStyle(2, 0x00ffff, 0.5);
+                        g.lineBetween(this.drone.x, this.drone.y, this.drone.x, this.drone.y + 100);
+                        this.tweens.add({ targets: g, alpha: 0, duration: 200, onComplete: () => { g.destroy(); }});
                     }
 
                     window.gameState.coins += amount;
@@ -996,18 +1117,7 @@ class GameScene extends Phaser.Scene {
         // Supply Drop (Periodic Reward)
         this.time.addEvent({
             delay: 120000, // 2 minutes
-            callback: () => {
-                 const dist = window.gameState.maxDistance || 0;
-                 const bonus = 1 + Math.floor(dist / 2000);
-                 const reward = Math.floor(50 * bonus);
-                 window.gameState.coins += reward;
-                 if (scoreText) scoreText.setText(window.gameState.coins);
-                 showStoryMessage(this, "Command Center: Supply Drop received. +" + reward + " coins.");
-                 updateShopUI();
-
-                 // Visual
-                 showFloatingText(this, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
-            },
+            callback: () => spawnSupplyCrate(this),
             loop: true
         });
 
@@ -1046,9 +1156,11 @@ class GameScene extends Phaser.Scene {
         this.physics.add.collider(player, spikes, hitSpike, null, this);
         this.physics.add.collider(monsters, platforms);
         this.physics.add.collider(loot, platforms); // Loot bounces on ground
+        this.physics.add.collider(this.crates, platforms); // Crates land on ground
         this.physics.add.overlap(player, monsters, hitMonster, null, this); // Changed callback
         this.physics.add.overlap(player, stars, collectStar, null, this);
         this.physics.add.overlap(player, loot, collectLoot, null, this); // Collect Loot
+        this.physics.add.overlap(player, this.crates, collectCrate, null, this); // Collect Crate
         this.physics.add.overlap(player, gemGroup, collectGem, null, this);
         this.physics.add.overlap(lasers, monsters, laserHitMonster, null, this); // Laser collision
 
@@ -1104,24 +1216,40 @@ class GameScene extends Phaser.Scene {
         // Notify about offline earnings
         if (window.offlineEarnings && window.offlineEarnings > 0) {
              this.time.delayedCall(1000, () => {
-                 const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, 'OFFLINE EARNINGS:\n+' + window.offlineEarnings, {
-                     fontSize: '80px',
-                     fontFamily: 'Arial',
-                     fontStyle: 'bold',
+                 let msg = 'OFFLINE EARNINGS:\n+' + window.offlineEarnings;
+                 let fontSize = '80px';
+
+                 if (window.offlineDetails) {
+                     const d = window.offlineDetails;
+                     msg = `OFFLINE REPORT\nTime Away: ${d.seconds}s\nBase Rate: ${d.base}/s\nZone Bonus: x${d.multiplier.toFixed(1)}\n\nTOTAL: +${d.earned}`;
+                     fontSize = '40px';
+                 }
+
+                 const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, msg, {
+                     fontSize: fontSize,
+                     fontFamily: 'Courier', // Changed to Courier to match game style
+                     fontWeight: 'bold',
                      fill: '#ffff00',
                      align: 'center',
                      stroke: '#000000',
-                     strokeThickness: 8
+                     strokeThickness: 6,
+                     backgroundColor: '#000000aa',
+                     padding: { x: 20, y: 20 }
                  }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
 
                  this.tweens.add({
                      targets: earningsText,
-                     scale: { from: 0.5, to: 1.2 },
-                     duration: 1000,
-                     yoyo: true,
-                     hold: 2000,
+                     scale: { from: 0.8, to: 1.0 }, // Subtle pop
+                     duration: 500,
+                     yoyo: false,
+                     hold: 4000, // Longer hold for reading
                      onComplete: () => {
-                         earningsText.destroy();
+                         this.tweens.add({
+                             targets: earningsText,
+                             alpha: 0,
+                             duration: 1000,
+                             onComplete: () => earningsText.destroy()
+                         });
                      }
                  });
                  window.offlineEarnings = 0;
@@ -1262,6 +1390,25 @@ class GameScene extends Phaser.Scene {
                     item.setVelocityY(Math.sin(angle) * 400);
                 }
             });
+
+            // Synergy: Magnetic Lure
+            // If we have Magnet AND Monster Lure (spawnRateLevel > 0), pull monsters gently
+            if (window.gameState.spawnRateLevel > 0) {
+                 const lureRange = 400;
+                 monsters.children.iterate((monster) => {
+                     if (monster.active && Phaser.Math.Distance.Between(player.x, player.y, monster.x, monster.y) < lureRange) {
+                          // Pull gently towards player (so auto-attack can hit them)
+                          const angle = Phaser.Math.Angle.Between(monster.x, monster.y, player.x, player.y);
+                          if (monster.body.allowGravity) {
+                              monster.setVelocityX(monster.body.velocity.x + Math.cos(angle) * 10);
+                          } else {
+                              // For flying bats
+                              monster.body.velocity.x += Math.cos(angle) * 5;
+                              monster.body.velocity.y += Math.sin(angle) * 5;
+                          }
+                     }
+                 });
+            }
         }
 
         // Auto-Jump
