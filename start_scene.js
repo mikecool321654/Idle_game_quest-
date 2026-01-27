@@ -101,6 +101,26 @@ class StartScene extends Phaser.Scene {
         .on('pointerout', () => startBtn.setScale(1.0))
         .on('pointerdown', () => this.startGame());
 
+        // Keyboard Support & Hint
+        this.input.keyboard.on('keydown-SPACE', () => this.startGame());
+        this.input.keyboard.on('keydown-ENTER', () => this.startGame());
+
+        const pressSpaceText = this.add.text(width / 2, height * 0.82, 'PRESS [SPACE]', {
+            fontSize: '24px',
+            fontFamily: 'Courier',
+            fill: '#0f0',
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+            targets: pressSpaceText,
+            alpha: { from: 1, to: 0.2 },
+            duration: 800,
+            yoyo: true,
+            repeat: -1
+        });
+
     }
 
     update() {
