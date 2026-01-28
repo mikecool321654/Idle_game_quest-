@@ -65,6 +65,7 @@ class UpgradeScene extends Phaser.Scene {
             { id: 'autojump', name: 'Auto-Pilot', cost: 500, x: 0, y: -500, parent: 'jetpack', var: 'hasAutoJump', description: 'AI Navigation. Jumps automatically to avoid falling.' },
             { id: 'magnet', name: 'Magnet', cost: 200, x: 0, y: 350, parent: 'coinfactory', var: 'hasMagnet', description: 'Gravitic Field. Attracts stars and gems automatically.' },
             { id: 'lure', name: 'Monster Lure', cost: 150, x: 0, y: 450, parent: 'magnet', var: 'spawnRateLevel', description: 'Increases enemy spawn rate. More enemies = more loot.' },
+            { id: 'scavenger', name: 'Scavenger', cost: 300, x: 0, y: 550, parent: 'lure', var: 'hasScavenger', description: 'Protocol Override. Collecting items doubles Coin Maker output for 2s.' },
             { id: 'autoattack', name: 'Auto-Turret', cost: 300, x: 450, y: 0, parent: 'laser', var: 'hasAutoAttack', description: 'Automated defense system. Fires at enemies in range.' }
         ];
 

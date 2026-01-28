@@ -34,6 +34,7 @@ window.gameState = window.gameState || {
     hasAutoJump: false,
     hasMagnet: false,
     hasAutoAttack: false,
+    hasScavenger: false, // New Synergy
     spawnRateLevel: 0,
     lastDeathReason: ''
 };
@@ -361,6 +362,18 @@ function spawnNextPlatform(scene) {
              if (star) star.enableBody(true, startX + (k*50), highY - 50, true, true);
         }
     }
+    // Coin Shower (Rare Reward)
+    if (nextPlatformX > 1000 && Phaser.Math.Between(0, 100) < 5) {
+        let showerX = startX + width / 2;
+        let showerY = y - 250;
+        for(let r=0; r<3; r++) {
+            for(let c=0; c<3; c++) {
+                 let star = stars.get(showerX + (c*40) - 40, showerY + (r*40), 'star');
+                 if (star) star.enableBody(true, showerX + (c*40) - 40, showerY + (r*40), true, true);
+            }
+        }
+        showFloatingText(scene, showerX, showerY - 50, "BONUS!", '#ffd700');
+    }
     if (Phaser.Math.Between(0, 100) < 10) {
         let unreachY = y - Phaser.Math.Between(300, 400);
         // Use createPlatform for consistency (TileSprite).
@@ -457,11 +470,13 @@ function hitMonster(player, monster) {
 function collectStar(player, star) {
     star.disableBody(true, true);
     gainCoins(player.scene, 1, star.x, star.y);
+    triggerScavenger(player.scene);
 }
 
 function collectLoot(player, item) {
     item.destroy();
     gainCoins(player.scene, 5, item.x, item.y); // Monsters drop more valuble loot? Or just 1? Let's say 1-3.
+    triggerScavenger(player.scene);
 }
 
 function gainCoins(scene, amount, x, y) {
@@ -530,6 +545,14 @@ function collectGem(player, gem) {
     gem.disableBody(true, true);
     window.gameState.hasGem = true;
     showStoryMessage(player.scene, "Command Center: Gem acquired! Excellent work.");
+    triggerScavenger(player.scene);
+}
+
+function triggerScavenger(scene) {
+    if (window.gameState.hasScavenger) {
+        window.gameState.scavengerEndTime = Date.now() + 2000;
+        showFloatingText(scene, player.x, player.y - 80, "BOOST!", '#ffff00');
+    }
 }
 
 function showStoryMessage(scene, msg) {
@@ -706,6 +729,8 @@ function createSettingsUI(scene) {
     minimapContainer.add(bgMap);
     minimapPlayer = scene.add.circle(0, 0, 4, 0x00ff00);
     minimapContainer.add(minimapPlayer);
+    scene.minimapEnemies = scene.add.graphics();
+    minimapContainer.add(scene.minimapEnemies);
     minimapGem = scene.add.circle(195, 10, 4, 0x00ffff);
     minimapContainer.add(minimapGem);
 
@@ -1085,12 +1110,23 @@ class GameScene extends Phaser.Scene {
 
                     // Synergy: Blood Money (Auto-Attack/Kills boost idle income)
                     // If killed something in last 5 seconds, double the income
+                    let droneColor = null;
                     if (window.gameState.lastKillTime && Date.now() - window.gameState.lastKillTime < 5000) {
                         amount *= 2;
-                        if (this.drone && this.drone.visible) {
-                             this.drone.setTint(0xff0000); // Angry drone
-                             this.time.delayedCall(500, () => this.drone.clearTint());
-                        }
+                        droneColor = 0xff0000; // Angry drone
+                    }
+
+                    // Synergy: Scavenger (Collection boosts idle income)
+                    if (window.gameState.scavengerEndTime && Date.now() < window.gameState.scavengerEndTime) {
+                        amount *= 2;
+                        droneColor = 0xffff00; // Gold drone (Overrides Red if both active? Or maybe stacks?)
+                    }
+
+                    if (droneColor && this.drone && this.drone.visible) {
+                        this.drone.setTint(droneColor);
+                        this.time.delayedCall(500, () => {
+                            if (this.drone) this.drone.clearTint();
+                        });
                     }
 
                     amount = Math.max(1, amount);
@@ -1221,7 +1257,7 @@ class GameScene extends Phaser.Scene {
 
                  if (window.offlineDetails) {
                      const d = window.offlineDetails;
-                     msg = `OFFLINE REPORT\nTime Away: ${d.seconds}s\nBase Rate: ${d.base}/s\nZone Bonus: x${d.multiplier.toFixed(1)}\n\nTOTAL: +${d.earned}`;
+                     msg = `WELCOME BACK COMMANDER\n\nOFFLINE REPORT\nTime Away: ${d.seconds}s\nBase Rate: ${d.base}/s\nZone Bonus: x${d.multiplier.toFixed(1)}\n\nTOTAL: +${d.earned}`;
                      fontSize = '40px';
                  }
 
@@ -1337,6 +1373,18 @@ class GameScene extends Phaser.Scene {
             let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
             minimapPlayer.setPosition(px, py);
             minimapGem.setPosition(MAP_WIDTH - 5, 10);
+
+            if (this.minimapEnemies) {
+                this.minimapEnemies.clear();
+                this.minimapEnemies.fillStyle(0xff0000, 1);
+                monsters.children.iterate((monster) => {
+                    if (monster.active) {
+                        let mx = Phaser.Math.Clamp(monster.x * scaleX, 0, MAP_WIDTH);
+                        let my = Phaser.Math.Clamp(monster.y * scaleY, 0, MAP_HEIGHT);
+                        this.minimapEnemies.fillCircle(mx, my, 2);
+                    }
+                });
+            }
         }
 
         // --- IDLE MECHANICS ---
