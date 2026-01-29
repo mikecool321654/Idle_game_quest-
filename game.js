@@ -35,7 +35,8 @@ window.gameState = window.gameState || {
     hasMagnet: false,
     hasAutoAttack: false,
     spawnRateLevel: 0,
-    lastDeathReason: ''
+    lastDeathReason: '',
+    bestiary: [] // Tracks analyzed enemies
 };
 
 // --- Persistence Logic ---
@@ -68,30 +69,55 @@ function loadGame() {
             const diffSeconds = (now - lastTime) / 1000;
 
             if (diffSeconds > 1) {
+                let totalEarned = 0;
+                let coinMakerEarned = 0;
+                let killsEarned = 0;
+                let kills = 0;
+
+                // Coin Maker Income
                 let rate = 0;
+                let multiplier = 1;
+                let base = 0;
                 if (window.gameState.hasCoinMaker) {
-                    let base = 1;
+                    base = 1;
                     if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
                         base = 2;
                     }
                     const dist = window.gameState.maxDistance || 0;
                     // Exploration Bonus: +100% per 2000 distance
-                    const multiplier = 1 + (dist / 2000);
+                    multiplier = 1 + (dist / 2000);
                     rate = base * multiplier;
+                    coinMakerEarned = Math.floor(diffSeconds * rate);
                 }
 
-                if (rate > 0) {
-                    const earned = Math.floor(diffSeconds * rate);
-                    window.gameState.coins += earned;
+                // Auto-Attack Income (Simulated Kills)
+                if (window.gameState.hasAutoAttack) {
+                    // Base: 1 kill every 10 seconds
+                    // Spawn Rate Level increases kill frequency?
+                    // Let's say spawnRateLevel increases loot value or frequency.
+                    // Let's increase frequency: 10s / (1 + spawnRate * 0.2)
+                    const spawnMult = 1 + (window.gameState.spawnRateLevel || 0) * 0.2;
+                    const killInterval = 10 / spawnMult;
+                    kills = Math.floor(diffSeconds / killInterval);
+                    killsEarned = kills * 5; // 5 coins per kill
+                }
+
+                totalEarned = coinMakerEarned + killsEarned;
+
+                if (totalEarned > 0) {
+                    window.gameState.coins += totalEarned;
 
                     window.offlineDetails = {
-                        earned: earned,
+                        earned: totalEarned,
+                        coinMakerEarned: coinMakerEarned,
+                        killsEarned: killsEarned,
+                        kills: kills,
                         base: base,
                         multiplier: multiplier,
                         seconds: Math.floor(diffSeconds)
                     };
 
-                    return earned;
+                    return totalEarned;
                 }
             }
         }
@@ -125,6 +151,14 @@ let minimapGem;
 
 
 // --- Helpers ---
+
+function addToBestiary(scene, key) {
+    if (!window.gameState.bestiary) window.gameState.bestiary = [];
+    if (!window.gameState.bestiary.includes(key)) {
+        window.gameState.bestiary.push(key);
+        showFloatingText(scene, player.x, player.y - 80, "ANALYZED: " + key.toUpperCase(), '#00ffff');
+    }
+}
 
 function attemptIdleSpawn(scene) {
     // Only spawn if player is alive and we aren't overwhelmed
@@ -275,6 +309,7 @@ function handleSword(scene) {
         const dy = Math.abs(monster.y - player.y);
         if (dx > 0 && dx < 80 && dy < 50) {
              monster.disableBody(true, true);
+             addToBestiary(scene, monster.texture.key);
              spawnLoot(scene, monster.x, monster.y);
              window.gameState.lastKillTime = Date.now();
         }
@@ -296,6 +331,7 @@ function handleLaser(scene) {
 function laserHitMonster(laser, monster) {
     laser.disableBody(true, true);
     monster.disableBody(true, true);
+    addToBestiary(laser.scene, monster.texture.key);
     spawnLoot(laser.scene, monster.x, monster.y);
     window.gameState.lastKillTime = Date.now();
     showStoryMessage(laser.scene, "Command Center: Target neutralized.");
@@ -456,11 +492,13 @@ function hitMonster(player, monster) {
 
 function collectStar(player, star) {
     star.disableBody(true, true);
+    window.gameState.lastCollectionTime = Date.now();
     gainCoins(player.scene, 1, star.x, star.y);
 }
 
 function collectLoot(player, item) {
     item.destroy();
+    window.gameState.lastCollectionTime = Date.now();
     gainCoins(player.scene, 5, item.x, item.y); // Monsters drop more valuble loot? Or just 1? Let's say 1-3.
 }
 
@@ -492,6 +530,19 @@ function spawnSupplyCrate(scene) {
         crate.setBounce(0.3);
         crate.setDrag(100);
         showStoryMessage(scene, "Command Center: Supply Drop incoming.");
+    }
+}
+
+function spawnCoinBurst(scene) {
+    if (!player.active) return;
+    showStoryMessage(scene, "Command Center: Orbital Coin Burst initiated!");
+    for(let i=0; i<10; i++) {
+        const item = loot.create(player.x + Phaser.Math.Between(-100, 100), player.y - 400 - Phaser.Math.Between(0, 200), 'star');
+        if (item) {
+             item.setBounce(0.5);
+             item.setDrag(100);
+             item.setVelocity(Phaser.Math.Between(-100, 100), 100);
+        }
     }
 }
 
@@ -529,6 +580,7 @@ function showFloatingText(scene, x, y, message, color) {
 function collectGem(player, gem) {
     gem.disableBody(true, true);
     window.gameState.hasGem = true;
+    window.gameState.lastCollectionTime = Date.now();
     showStoryMessage(player.scene, "Command Center: Gem acquired! Excellent work.");
 }
 
@@ -1085,12 +1137,27 @@ class GameScene extends Phaser.Scene {
 
                     // Synergy: Blood Money (Auto-Attack/Kills boost idle income)
                     // If killed something in last 5 seconds, double the income
+                    let synergyActive = false;
                     if (window.gameState.lastKillTime && Date.now() - window.gameState.lastKillTime < 5000) {
                         amount *= 2;
+                        synergyActive = true;
                         if (this.drone && this.drone.visible) {
-                             this.drone.setTint(0xff0000); // Angry drone
-                             this.time.delayedCall(500, () => this.drone.clearTint());
+                             this.drone.setTint(0xff0000); // Angry drone (Red)
                         }
+                    }
+
+                    // Synergy: Scavenger (Collecting items boosts idle income)
+                    // If collected something in last 2 seconds, double the income
+                    if (window.gameState.lastCollectionTime && Date.now() - window.gameState.lastCollectionTime < 2000) {
+                        amount *= 2;
+                        synergyActive = true;
+                        if (this.drone && this.drone.visible) {
+                             this.drone.setTint(0xffff00); // Scavenger drone (Yellow)
+                        }
+                    }
+
+                    if (!synergyActive && this.drone) {
+                         this.drone.clearTint();
                     }
 
                     amount = Math.max(1, amount);
@@ -1118,6 +1185,19 @@ class GameScene extends Phaser.Scene {
         this.time.addEvent({
             delay: 120000, // 2 minutes
             callback: () => spawnSupplyCrate(this),
+            loop: true
+        });
+
+        // Coin Burst (Frequent Reward)
+        this.time.addEvent({
+            delay: Phaser.Math.Between(180000, 300000), // 3-5 minutes
+            callback: () => {
+                spawnCoinBurst(this);
+                // Reset timer for randomness? No, loop: true uses fixed delay.
+                // To support random interval, we'd need recursive call.
+                // But fixed 3-5min determined at start is acceptable for now.
+                // Actually, let's just make it 4 minutes for simplicity.
+            },
             loop: true
         });
 
@@ -1221,8 +1301,15 @@ class GameScene extends Phaser.Scene {
 
                  if (window.offlineDetails) {
                      const d = window.offlineDetails;
-                     msg = `OFFLINE REPORT\nTime Away: ${d.seconds}s\nBase Rate: ${d.base}/s\nZone Bonus: x${d.multiplier.toFixed(1)}\n\nTOTAL: +${d.earned}`;
-                     fontSize = '40px';
+                     msg = `OFFLINE REPORT\nTime Away: ${d.seconds}s\n\n`;
+                     if (d.coinMakerEarned > 0) {
+                        msg += `Mining: +${d.coinMakerEarned} (x${d.multiplier.toFixed(1)} Zone)\n`;
+                     }
+                     if (d.killsEarned > 0) {
+                        msg += `Auto-Defense: +${d.killsEarned} (${d.kills} Kills)\n`;
+                     }
+                     msg += `\nTOTAL: +${d.earned}`;
+                     fontSize = '32px';
                  }
 
                  const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, msg, {
@@ -1434,10 +1521,13 @@ class GameScene extends Phaser.Scene {
                 let minDistSq = 400 * 400;
                 monsters.children.iterate((monster) => {
                     if (monster.active) {
-                        const dSq = Phaser.Math.Distance.Squared(player.x, player.y, monster.x, monster.y);
-                        if (dSq < minDistSq && monster.x > player.x) {
-                            minDistSq = dSq;
-                            target = monster;
+                        // Auto-Attack requires Bestiary entry (Automation depends on Exploration)
+                        if (window.gameState.bestiary && window.gameState.bestiary.includes(monster.texture.key)) {
+                            const dSq = Phaser.Math.Distance.Squared(player.x, player.y, monster.x, monster.y);
+                            if (dSq < minDistSq && monster.x > player.x) {
+                                minDistSq = dSq;
+                                target = monster;
+                            }
                         }
                     }
                 });
