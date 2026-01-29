@@ -213,7 +213,15 @@ function cleanup(scene) {
     const pChildren = platforms.getChildren();
     for (let i = pChildren.length - 1; i >= 0; i--) {
         const child = pChildren[i];
-        if (child.x + child.displayWidth / 2 < cleanupThreshold) child.destroy();
+        if (child.x + child.displayWidth / 2 < cleanupThreshold) {
+            if (typeof child.disableBody === 'function') {
+                child.disableBody(true, true);
+            } else {
+                child.body.enable = false;
+                child.setActive(false);
+                child.setVisible(false);
+            }
+        }
     }
     const sChildren = stars.getChildren();
     for (let i = sChildren.length - 1; i >= 0; i--) {
@@ -311,20 +319,31 @@ function createPlatform(scene, x, y, width, tint = 0xff00ff) {
     const height = 32;
     const centerX = x + width / 2;
 
-    // Use TileSprite for better visuals with textures
-    const platform = scene.add.tileSprite(centerX, y, width, height, 'ground');
-    platforms.add(platform);
+    let platform = platforms.getChildren().find(p => !p.active);
 
-    // Scale tile to fit height if texture exists and is valid
-    if (scene.textures.exists('ground')) {
-         const tex = scene.textures.get('ground').getSourceImage();
-         if (tex && tex.height > 0) {
-             const scale = 32 / tex.height;
-             platform.setTileScale(scale, scale);
-         }
+    if (platform) {
+        platform.setActive(true);
+        platform.setVisible(true);
+        platform.body.enable = true;
+        platform.setPosition(centerX, y);
+        platform.setSize(width, height);
+        platform.clearTint();
+        platform.refreshBody();
+    } else {
+        // Use TileSprite for better visuals with textures
+        platform = scene.add.tileSprite(centerX, y, width, height, 'ground');
+        platforms.add(platform);
+
+        // Scale tile to fit height if texture exists and is valid
+        if (scene.textures.exists('ground')) {
+             const tex = scene.textures.get('ground').getSourceImage();
+             if (tex && tex.height > 0) {
+                 const scale = 32 / tex.height;
+                 platform.setTileScale(scale, scale);
+             }
+        }
     }
 
-    // platform.refreshBody(); // Not needed/available for TileSprite if sized at creation
     if (tint !== null) {
         platform.setTint(tint);
     }
