@@ -32,6 +32,8 @@ test('Check object pooling behavior', async ({ page }) => {
       starsActive: stars.countActive(),
       spikesTotal: spikes.getLength(),
       spikesActive: spikes.countActive(),
+      platformsTotal: platforms.getLength(),
+      platformsActive: platforms.countActive(),
     };
   });
 
@@ -48,4 +50,8 @@ test('Check object pooling behavior', async ({ page }) => {
   const efficientReuse = stats.starsTotal < 40;
 
   expect(poolingDetected || efficientReuse).toBe(true);
+
+  // ⚡ Bolt Optimization: Verify Platform Pooling
+  // Platforms should be recycled, so Total must be greater than Active after cleanup
+  expect(stats.platformsTotal).toBeGreaterThan(stats.platformsActive);
 });
