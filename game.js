@@ -467,6 +467,15 @@ function collectLoot(player, item) {
 function gainCoins(scene, amount, x, y) {
     window.gameState.coins += amount;
     scoreText.setText(window.gameState.coins);
+
+    // Coin Pop Animation
+    scene.tweens.add({
+        targets: scoreText,
+        scale: { from: 1.3, to: 1 },
+        duration: 200,
+        ease: 'Power1'
+    });
+
     updateShopUI();
     showFloatingText(scene, x, y, "+" + amount, '#ffd700');
 }
@@ -564,13 +573,38 @@ function updateShopUI() {
 
 function createUI(scene) {
     scene.add.image(24, 32, 'star').setScrollFactor(0);
-    scoreText = scene.add.text(45, 16, window.gameState.coins, { fontSize: '32px', fill: '#fff', fontFamily: 'Courier' }).setScrollFactor(0);
+    scoreText = scene.add.text(45, 32, window.gameState.coins, {
+        fontSize: '32px',
+        fill: '#fff',
+        fontFamily: 'Courier',
+        stroke: '#000',
+        strokeThickness: 4
+    }).setOrigin(0, 0.5).setScrollFactor(0);
 
-    robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, { fontSize: '24px', fill: '#0ff', fontFamily: 'Courier' }).setScrollFactor(0);
+    robotText = scene.add.text(16, 60, 'Robot MK-' + window.gameState.robotVersion, {
+        fontSize: '24px',
+        fill: '#0ff',
+        fontFamily: 'Courier',
+        stroke: '#000',
+        strokeThickness: 4
+    }).setScrollFactor(0);
 
-    zoneText = scene.add.text(16, 90, 'ZONE 1\n(x1)', { fontSize: '20px', fill: '#ffff00', fontFamily: 'Courier' }).setScrollFactor(0);
+    zoneText = scene.add.text(16, 90, 'ZONE 1\n(x1)', {
+        fontSize: '20px',
+        fill: '#ffff00',
+        fontFamily: 'Courier',
+        stroke: '#000',
+        strokeThickness: 4
+    }).setScrollFactor(0);
 
-    shopText = scene.add.text(gameWidth - 16, 16, '', { fontSize: '24px', fill: '#aaa', align: 'right', fontFamily: 'Courier' })
+    shopText = scene.add.text(gameWidth - 16, 16, '', {
+        fontSize: '24px',
+        fill: '#aaa',
+        align: 'right',
+        fontFamily: 'Courier',
+        stroke: '#000',
+        strokeThickness: 4
+    })
         .setOrigin(1, 0)
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
