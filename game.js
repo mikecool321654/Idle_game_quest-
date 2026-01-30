@@ -237,8 +237,8 @@ function cleanup(scene) {
     for (let i = lChildren.length - 1; i >= 0; i--) {
         const child = lChildren[i];
         if (child.active) {
-            if (child.x < cleanupThreshold) child.destroy();
-            else if (child.y > gameHeight + 100) child.destroy();
+            if (child.x < cleanupThreshold) child.disableBody(true, true);
+            else if (child.y > gameHeight + 100) child.disableBody(true, true);
         }
     }
 }
@@ -460,7 +460,7 @@ function collectStar(player, star) {
 }
 
 function collectLoot(player, item) {
-    item.destroy();
+    item.disableBody(true, true);
     gainCoins(player.scene, 5, item.x, item.y); // Monsters drop more valuble loot? Or just 1? Let's say 1-3.
 }
 
@@ -472,8 +472,12 @@ function gainCoins(scene, amount, x, y) {
 }
 
 function spawnLoot(scene, x, y) {
-    const item = loot.create(x, y, 'star');
+    // Optimization: Use object pooling for loot
+    const item = loot.get(x, y, 'star');
     if (item) {
+        item.setActive(true);
+        item.setVisible(true);
+        item.enableBody(true, x, y, true, true);
         item.setBounce(0.5);
         item.setDrag(100);
         item.setVelocity(Phaser.Math.Between(-200, 200), -300);
