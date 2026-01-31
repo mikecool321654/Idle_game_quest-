@@ -580,12 +580,26 @@ function createUI(scene) {
 
     scene.input.keyboard.on('keydown-B', () => handleShopAction(scene));
 
+    const gearTooltip = scene.add.text(70, 100, 'SETTINGS [ESC]', {
+        fontSize: '16px',
+        fill: '#ffffff',
+        backgroundColor: '#000000aa',
+        padding: { x: 4, y: 2 },
+        fontFamily: 'Courier'
+    }).setOrigin(0, 0.5).setScrollFactor(0).setVisible(false).setDepth(100);
+
     const gear = scene.add.image(30, 100, 'gear')
         .setScrollFactor(0)
         .setInteractive({ useHandCursor: true })
         .on('pointerdown', () => toggleSettings(scene))
-        .on('pointerover', () => gear.setScale(1.1))
-        .on('pointerout', () => gear.setScale(1.0));
+        .on('pointerover', () => {
+            gear.setScale(1.1);
+            gearTooltip.setVisible(true);
+        })
+        .on('pointerout', () => {
+            gear.setScale(1.0);
+            gearTooltip.setVisible(false);
+        });
 
     // Escape to Settings (Check if UpgradeScene is open/just closed)
     scene.input.keyboard.on('keydown-ESC', () => {
