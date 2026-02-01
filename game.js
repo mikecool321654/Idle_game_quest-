@@ -35,7 +35,8 @@ window.gameState = window.gameState || {
     hasMagnet: false,
     hasAutoAttack: false,
     spawnRateLevel: 0,
-    lastDeathReason: ''
+    lastDeathReason: '',
+    bestiary: [] // Array of monster keys defeated
 };
 
 // --- Persistence Logic ---
@@ -69,14 +70,17 @@ function loadGame() {
 
             if (diffSeconds > 1) {
                 let rate = 0;
+                let base = 0;
+                let multiplier = 0;
+
                 if (window.gameState.hasCoinMaker) {
-                    let base = 1;
+                    base = 1;
                     if (window.gameState.coinMakerLevel && window.gameState.coinMakerLevel >= 2) {
                         base = 2;
                     }
                     const dist = window.gameState.maxDistance || 0;
                     // Exploration Bonus: +100% per 2000 distance
-                    const multiplier = 1 + (dist / 2000);
+                    multiplier = 1 + (dist / 2000);
                     rate = base * multiplier;
                 }
 
@@ -90,6 +94,7 @@ function loadGame() {
                         multiplier: multiplier,
                         seconds: Math.floor(diffSeconds)
                     };
+                    console.log("Offline Earnings Calculated:", earned);
 
                     return earned;
                 }
@@ -125,6 +130,91 @@ let minimapGem;
 
 
 // --- Helpers ---
+
+function addToBestiary(scene, key) {
+    if (!window.gameState.bestiary) window.gameState.bestiary = [];
+    if (!window.gameState.bestiary.includes(key)) {
+        window.gameState.bestiary.push(key);
+        window.saveGame();
+        showFloatingText(scene, player.x, player.y - 100, "NEW DATA: " + key.toUpperCase(), '#00ffff');
+    }
+}
+
+function spawnCoinBurst(scene) {
+    if (!player.active) return;
+    const burstCount = 20;
+    const startX = player.x;
+    const startY = player.y - 400;
+
+    for (let i = 0; i < burstCount; i++) {
+        const x = startX + Phaser.Math.Between(-200, 200);
+        const y = startY + Phaser.Math.Between(-100, 100);
+        spawnLoot(scene, x, y);
+    }
+
+    showFloatingText(scene, player.x, player.y - 200, "COIN BURST!", '#FFD700');
+    showStoryMessage(scene, "Command Center: Resource pocket ruptured. Gather them!");
+}
+
+function createOfflineModal(scene, details) {
+    const w = gameWidth;
+    const h = gameHeight;
+    const modal = scene.add.container(w/2, h/2).setScrollFactor(0).setDepth(300);
+
+    // Background
+    const bg = scene.add.rectangle(0, 0, w * 0.8, h * 0.6, 0x000000, 0.9);
+    bg.setStrokeStyle(4, 0x00ff00);
+    modal.add(bg);
+
+    // Title
+    const title = scene.add.text(0, -h * 0.2, 'WELCOME BACK COMMANDER', {
+        fontSize: '32px', fontFamily: 'Courier', fill: '#00ff00', fontStyle: 'bold'
+    }).setOrigin(0.5);
+    modal.add(title);
+
+    // Details
+    const content = `SYSTEM REPORT:\n\n` +
+                    `Time Offline:   ${details.seconds}s\n` +
+                    `Base Rate:      ${details.base}/s\n` +
+                    `Zone Multiplier: x${details.multiplier.toFixed(1)}\n` +
+                    `----------------\n` +
+                    `TOTAL EARNED:   ${details.earned} COINS`;
+
+    const text = scene.add.text(0, 0, content, {
+        fontSize: '24px', fontFamily: 'Courier', fill: '#ffffff', align: 'left'
+    }).setOrigin(0.5);
+    modal.add(text);
+
+    // Claim Button
+    const btnBg = scene.add.rectangle(0, h * 0.2, 200, 60, 0x008800);
+    const btnText = scene.add.text(0, h * 0.2, 'CLAIM', {
+        fontSize: '28px', fontFamily: 'Courier', fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    btnBg.setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+            scene.tweens.add({
+                targets: modal,
+                scale: 0,
+                duration: 300,
+                onComplete: () => modal.destroy()
+            });
+            window.offlineEarnings = 0; // Clear it so it doesn't show again
+        })
+        .on('pointerover', () => btnBg.setFillStyle(0x00aa00))
+        .on('pointerout', () => btnBg.setFillStyle(0x008800));
+
+    modal.add([btnBg, btnText]);
+
+    // Pop in
+    modal.setScale(0);
+    scene.tweens.add({
+        targets: modal,
+        scale: 1,
+        duration: 500,
+        ease: 'Back.out'
+    });
+}
 
 function attemptIdleSpawn(scene) {
     // Only spawn if player is alive and we aren't overwhelmed
@@ -277,6 +367,7 @@ function handleSword(scene) {
              monster.disableBody(true, true);
              spawnLoot(scene, monster.x, monster.y);
              window.gameState.lastKillTime = Date.now();
+             addToBestiary(scene, monster.texture.key);
         }
     });
 }
@@ -298,6 +389,7 @@ function laserHitMonster(laser, monster) {
     monster.disableBody(true, true);
     spawnLoot(laser.scene, monster.x, monster.y);
     window.gameState.lastKillTime = Date.now();
+    addToBestiary(laser.scene, monster.texture.key);
     showStoryMessage(laser.scene, "Command Center: Target neutralized.");
 }
 
@@ -457,11 +549,17 @@ function hitMonster(player, monster) {
 function collectStar(player, star) {
     star.disableBody(true, true);
     gainCoins(player.scene, 1, star.x, star.y);
+    if (window.gameState.hasMagnet && player.scene.lastIdleSpawnTime) {
+        player.scene.lastIdleSpawnTime -= 1000;
+    }
 }
 
 function collectLoot(player, item) {
     item.destroy();
     gainCoins(player.scene, 5, item.x, item.y); // Monsters drop more valuble loot? Or just 1? Let's say 1-3.
+    if (window.gameState.hasMagnet && player.scene.lastIdleSpawnTime) {
+        player.scene.lastIdleSpawnTime -= 1000;
+    }
 }
 
 function gainCoins(scene, amount, x, y) {
@@ -504,6 +602,9 @@ function collectCrate(player, crate) {
     gainCoins(player.scene, reward, player.x, player.y - 50);
     showStoryMessage(player.scene, "Command Center: Supplies secured.");
     showFloatingText(player.scene, player.x, player.y - 100, "SUPPLY DROP\n+" + reward, '#00ff00');
+    if (window.gameState.hasMagnet && player.scene.lastIdleSpawnTime) {
+        player.scene.lastIdleSpawnTime -= 1000;
+    }
 }
 
 function showFloatingText(scene, x, y, message, color) {
@@ -530,6 +631,9 @@ function collectGem(player, gem) {
     gem.disableBody(true, true);
     window.gameState.hasGem = true;
     showStoryMessage(player.scene, "Command Center: Gem acquired! Excellent work.");
+    if (window.gameState.hasMagnet && player.scene.lastIdleSpawnTime) {
+        player.scene.lastIdleSpawnTime -= 1000;
+    }
 }
 
 function showStoryMessage(scene, msg) {
@@ -1121,6 +1225,13 @@ class GameScene extends Phaser.Scene {
             loop: true
         });
 
+        // Coin Burst (Every 3 minutes)
+        this.time.addEvent({
+            delay: 180000,
+            callback: () => spawnCoinBurst(this),
+            loop: true
+        });
+
         // Create initial ground
         createPlatform(this, 0, lastPlatformY, 1000);
 
@@ -1216,43 +1327,12 @@ class GameScene extends Phaser.Scene {
         // Notify about offline earnings
         if (window.offlineEarnings && window.offlineEarnings > 0) {
              this.time.delayedCall(1000, () => {
-                 let msg = 'OFFLINE EARNINGS:\n+' + window.offlineEarnings;
-                 let fontSize = '80px';
-
                  if (window.offlineDetails) {
-                     const d = window.offlineDetails;
-                     msg = `OFFLINE REPORT\nTime Away: ${d.seconds}s\nBase Rate: ${d.base}/s\nZone Bonus: x${d.multiplier.toFixed(1)}\n\nTOTAL: +${d.earned}`;
-                     fontSize = '40px';
+                     createOfflineModal(this, window.offlineDetails);
+                 } else {
+                     // Fallback if details missing
+                     createOfflineModal(this, { seconds: '?', base: '?', multiplier: 1, earned: window.offlineEarnings });
                  }
-
-                 const earningsText = this.add.text(gameWidth / 2, gameHeight / 2, msg, {
-                     fontSize: fontSize,
-                     fontFamily: 'Courier', // Changed to Courier to match game style
-                     fontWeight: 'bold',
-                     fill: '#ffff00',
-                     align: 'center',
-                     stroke: '#000000',
-                     strokeThickness: 6,
-                     backgroundColor: '#000000aa',
-                     padding: { x: 20, y: 20 }
-                 }).setOrigin(0.5).setScrollFactor(0).setDepth(200);
-
-                 this.tweens.add({
-                     targets: earningsText,
-                     scale: { from: 0.8, to: 1.0 }, // Subtle pop
-                     duration: 500,
-                     yoyo: false,
-                     hold: 4000, // Longer hold for reading
-                     onComplete: () => {
-                         this.tweens.add({
-                             targets: earningsText,
-                             alpha: 0,
-                             duration: 1000,
-                             onComplete: () => earningsText.destroy()
-                         });
-                     }
-                 });
-                 window.offlineEarnings = 0;
              });
         }
     }
@@ -1434,6 +1514,9 @@ class GameScene extends Phaser.Scene {
                 let minDistSq = 400 * 400;
                 monsters.children.iterate((monster) => {
                     if (monster.active) {
+                        // Only attack analyzed enemies
+                        if (!window.gameState.bestiary || !window.gameState.bestiary.includes(monster.texture.key)) return;
+
                         const dSq = Phaser.Math.Distance.Squared(player.x, player.y, monster.x, monster.y);
                         if (dSq < minDistSq && monster.x > player.x) {
                             minDistSq = dSq;
