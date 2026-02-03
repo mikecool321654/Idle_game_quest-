@@ -1407,7 +1407,8 @@ class GameScene extends Phaser.Scene {
             this.lastStoryMilestone = 4500;
         }
 
-        if (minimapContainer && minimapPlayer) {
+        // Optimization: Only update minimap when Settings menu is visible
+        if (minimapContainer && minimapPlayer && settingsContainer && settingsContainer.visible) {
             const GOAL_X = 15000;
             const MAP_WIDTH = 200;
             const MAP_HEIGHT = 100;
@@ -1416,7 +1417,6 @@ class GameScene extends Phaser.Scene {
             let px = Phaser.Math.Clamp(player.x * scaleX, 0, MAP_WIDTH);
             let py = Phaser.Math.Clamp(player.y * scaleY, 0, MAP_HEIGHT);
             minimapPlayer.setPosition(px, py);
-            minimapGem.setPosition(MAP_WIDTH - 5, 10);
         }
 
         // --- IDLE MECHANICS ---
