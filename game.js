@@ -1443,9 +1443,14 @@ class GameScene extends Phaser.Scene {
 
         // Magnet
         if (window.gameState.hasMagnet) {
-            const magnetRangeSq = 300 * 300;
+            const magnetRange = 300;
+            const magnetRangeSq = magnetRange * magnetRange;
             stars.children.iterate((star) => {
-                if (star.active && Phaser.Math.Distance.Squared(player.x, player.y, star.x, star.y) < magnetRangeSq) {
+                // Optimization: fast checks before distance calculation
+                if (!star.active) return;
+                if (Math.abs(star.x - player.x) > magnetRange || Math.abs(star.y - player.y) > magnetRange) return;
+
+                if (Phaser.Math.Distance.Squared(player.x, player.y, star.x, star.y) < magnetRangeSq) {
                     const angle = Phaser.Math.Angle.Between(star.x, star.y, player.x, player.y);
                     const speed = 10;
                     star.x += Math.cos(angle) * speed;
@@ -1454,7 +1459,10 @@ class GameScene extends Phaser.Scene {
                 }
             });
             gemGroup.children.iterate((gem) => {
-                 if (gem.active && Phaser.Math.Distance.Squared(player.x, player.y, gem.x, gem.y) < magnetRangeSq) {
+                if (!gem.active) return;
+                if (Math.abs(gem.x - player.x) > magnetRange || Math.abs(gem.y - player.y) > magnetRange) return;
+
+                 if (Phaser.Math.Distance.Squared(player.x, player.y, gem.x, gem.y) < magnetRangeSq) {
                     const angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
                     const speed = 10;
                     gem.x += Math.cos(angle) * speed;
@@ -1463,7 +1471,10 @@ class GameScene extends Phaser.Scene {
                 }
             });
             loot.children.iterate((item) => {
-                 if (item.active && Phaser.Math.Distance.Squared(player.x, player.y, item.x, item.y) < magnetRangeSq) {
+                if (!item.active) return;
+                if (Math.abs(item.x - player.x) > magnetRange || Math.abs(item.y - player.y) > magnetRange) return;
+
+                 if (Phaser.Math.Distance.Squared(player.x, player.y, item.x, item.y) < magnetRangeSq) {
                     const angle = Phaser.Math.Angle.Between(item.x, item.y, player.x, player.y);
                     const speed = 12; // Loot is lighter?
                     item.setVelocityX(Math.cos(angle) * 400); // Dynamic body uses velocity
@@ -1474,9 +1485,13 @@ class GameScene extends Phaser.Scene {
             // Synergy: Magnetic Lure
             // If we have Magnet AND Monster Lure (spawnRateLevel > 0), pull monsters gently
             if (window.gameState.spawnRateLevel > 0) {
-                 const lureRangeSq = 400 * 400;
+                 const lureRange = 400;
+                 const lureRangeSq = lureRange * lureRange;
                  monsters.children.iterate((monster) => {
-                     if (monster.active && Phaser.Math.Distance.Squared(player.x, player.y, monster.x, monster.y) < lureRangeSq) {
+                     if (!monster.active) return;
+                     if (Math.abs(monster.x - player.x) > lureRange || Math.abs(monster.y - player.y) > lureRange) return;
+
+                     if (Phaser.Math.Distance.Squared(player.x, player.y, monster.x, monster.y) < lureRangeSq) {
                           // Pull gently towards player (so auto-attack can hit them)
                           const angle = Phaser.Math.Angle.Between(monster.x, monster.y, player.x, player.y);
                           if (monster.body.allowGravity) {
