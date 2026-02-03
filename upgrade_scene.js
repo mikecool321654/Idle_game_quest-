@@ -3,11 +3,17 @@ class UpgradeScene extends Phaser.Scene {
         super({ key: 'UpgradeScene' });
     }
 
-    create() {
+    create(data) {
         this.gameWidth = this.scale.width;
         this.gameHeight = this.scale.height;
         this.centerX = this.gameWidth / 2;
         this.centerY = this.gameHeight / 2;
+
+        // Restore Camera Position if restarting
+        if (data && (data.scrollX !== undefined || data.scrollY !== undefined)) {
+            this.cameras.main.scrollX = data.scrollX || 0;
+            this.cameras.main.scrollY = data.scrollY || 0;
+        }
 
         // Background (Static)
         this.add.rectangle(this.centerX, this.centerY, this.gameWidth, this.gameHeight, 0x000000, 0.9).setScrollFactor(0);
@@ -185,7 +191,8 @@ class UpgradeScene extends Phaser.Scene {
 
             // Interaction
             // Hover logic for all nodes (Tease the power!)
-            circle.setInteractive({ useHandCursor: state === 'available' })
+            // 'poor' is now interactive to show feedback
+            circle.setInteractive({ useHandCursor: (state === 'available' || state === 'poor') })
                 .on('pointerover', () => {
                     let desc = node.description;
                     if (state === 'ghost') desc = "(LOCKED) " + desc;
@@ -194,11 +201,27 @@ class UpgradeScene extends Phaser.Scene {
                 })
                 .on('pointerout', () => {
                     this.descriptionText.setText('');
+                    this.descriptionText.setColor('#ffffff'); // Reset color
                     circle.setStrokeStyle(3, strokeColor);
                 });
 
             if (state === 'available') {
                 circle.on('pointerdown', () => this.buyUpgrade(node));
+            } else if (state === 'poor') {
+                circle.on('pointerdown', () => {
+                    // Shake Feedback
+                    this.cameras.main.shake(100, 0.005); // Subtle screen shake
+                    this.tweens.add({
+                        targets: [circle, label],
+                        x: '+=5',
+                        duration: 50,
+                        yoyo: true,
+                        repeat: 3
+                    });
+                    // Text Feedback
+                    this.descriptionText.setText("INSUFFICIENT FUNDS: Need " + node.cost + " coins");
+                    this.descriptionText.setColor('#ff0000');
+                });
             }
 
             // Label
@@ -224,8 +247,11 @@ class UpgradeScene extends Phaser.Scene {
 
             if (window.saveGame) window.saveGame();
 
-            // Refresh
-            this.scene.restart();
+            // Refresh with camera persistence
+            this.scene.restart({
+                scrollX: this.cameras.main.scrollX,
+                scrollY: this.cameras.main.scrollY
+            });
         }
     }
 }
